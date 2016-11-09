@@ -38,7 +38,8 @@ cell_y_n = 0
 cell_n = cell_x_n
 
 # scaling factor when expanding/scrinking local arrays
-scaling_factor = 1.25 ## variable
+scaling_factor = 1.1 ## variable
+shrink_if = 1/(scaling_factor**3)
 
 # the particle "object" is defined in several arrays
 # particle_id is bound to the index in the x/y-arrays
@@ -122,7 +123,7 @@ send_n_global = np.zeros((mpi_size, mpi_size), dtype=int) # recvbuf
 comm.Allreduce(send_n_local , send_n_global , op=MPI.SUM)
 print("\n")
 print("rank:", rank)
-print("local particles:", particle_local)
+print("particle_local:", particle_local)
 print("belongs to rank:", find_rank_from_cell(find_cell_from_position(particle_x_local)))
 print("will be sent to:", send_to_local, "(sent_to-array)")
 
@@ -225,7 +226,6 @@ print("\n")
 # receiving
 ## TODO: use recv-buffer?
 for irank in range(mpi_size):
-#irank = 1
     if (rank != irank):
         # number of particles irank sends to rank (number of particles rank recieves from irank)
         Nrecv = send_n_global[irank, rank]
@@ -244,13 +244,7 @@ for irank in range(mpi_size):
             recv_x_np[irank][0:Nrecv] = comm.recv(buf=None, source = irank, tag = 2)
 print("received:", recv_id_np,"," , recv_x_np)
 
-# unpack (hstack) the list of arrays
-# (ravel/flatten can not be used for dtype=object)
-print("_flattend_ id:", np.hstack(recv_id_np))
-print("_flattend_ x:", np.hstack(recv_x_np))
-print("\n")
 
-# add the new particles to particle_local
 # move all active particles to front
 ##TODO: active should be a boolean array
 particle_active_local = np.array(particle_active_local, dtype=bool)
@@ -260,26 +254,83 @@ particle_local[:active_n] = particle_local[particle_active_local]
 particle_active_local[:active_n] = True
 particle_active_local[active_n:] = False
 
+print("\n values before communication:")
+print("particle_n_local", particle_n_local)
+print("particle_local", particle_local)
+print("particle_x_local", particle_x_local)
+print("old particle_active_local", particle_active_local)
 print("number of old particles:", active_n)
 print("number of incoming particles:", received_n)
 print("length of local array:", particle_n_local)
+print("\n")
 
-# check that local arrays have enough free space, otherwise allocate more
+### todo: add ceil/floor directly in if-check?
+# current scaling factor = 1.25
+# check if local arrays have enough free space, if not, allocate a "scaling_factor" more than needed
+
 if (active_n + received_n > particle_n_local):
-	print("append untill new length:", (active_n + received_n)*scaling_factor)
-	print("append with:",)
+	new_length = np.ceil((active_n + received_n)*scaling_factor)
+	print("new_length:", new_length)
+	#add = np.ceil((active_n + received_n - particle_n_local)*scaling_factor)
+	#print("add number of elements:", add)
+	#print("TEST: it should equal:", new_length - particle_n_local)
+	print("\n")
+	# if new length not equal old length
+	# resize all local arrays
+	if new_length != particle_n_local:
+		particle_active_local = np.resize(particle_active_local, new_length)
+		particle_x_local = np.resize(particle_x_local, new_length)
+		particle_local = np.resize(particle_local, new_length)
+		#particle_local.resize(new_length, refcheck = False) # refcheck = True by default
 
-# if local arrays are bigger than needed, shrink them
+# check if local arrays are bigger than needed (with a factor: shrink_if = 1/scaling_factor**3)
+# old + new particles < shrink_if*old_size
+# if they are, shrink them with a scaling_factor
+if (active_n + received_n < shrink_if*particle_n_local):
+	new_length = np.ceil(particle_n_local/scaling_factor)
+	print("new_length:", new_length)
+	#remove = np.floor((particle_n_local - particle_n_local)/scaling_factor)
+	#print("remove number of elements:", remove)
+	#print("TEST: it should equal:", particle_n_local - new_length)
+	print("\n")
+	# if new length not equal old length
+	# resize all local arrays
+	if new_length != particle_n_local:
+		particle_active_local = np.resize(particle_active_local, new_length)
+		particle_x_local = np.resize(particle_x_local, new_length)
+		particle_local = np.resize(particle_local, new_length)
+		#particle_local.resize(new_length, refcheck = False) # refcheck = True by default
 
-###TODO: dynamic size check!
+## insert new particles
+### TODO:
+## 	this must be done for each row (ie. rank) in the arrays for communication
+## can this be done directly in the recv-for loop under # receiving?
 
-particle_local = np.append(particle_local, recv_id_np)
-particle_x_local = np.append(particle_x_local, recv_x_np)
-particle_active_local_new = np.append(particle_active_local, [True]*np.size(recv_id_np))
+# do it in a for loop og unpack values
 
-print("particle_local", particle_x_local)
+# unpack (hstack) the list of arrays
+# (ravel/flatten can not be used for dtype=object)
+print("_flattend_ id:", np.hstack(recv_id_np))
+print("_flattend_ x:", np.hstack(recv_x_np))
+print("\n")
+
+particle_active_local[active_n:active_n+received_n]  = [True]*received_n
+particle_local[active_n:active_n+received_n] = np.hstack(recv_id_np)
+particle_x_local[active_n:active_n+received_n] = np.hstack(recv_x_np)
+
+# set particle_n_local to the new size of the local arrays
+particle_n_local = np.size(particle_local)
+# this is not needed, the local arrays are transferred to the next iteration
+# and the size etc. should be computed in the script
+
+# TODO: se skype
+
+print("values after communication:")
+#print("values after complete communication:")
+print("particle_n_local", particle_n_local)
+print("particle_local", particle_local)
 print("particle_x_local", particle_x_local)
-print("particle_active_local_new", particle_active_local_new)
+print("new particle_active_local", particle_active_local)
 
 #comm.barrier()
 #comm.wait()       

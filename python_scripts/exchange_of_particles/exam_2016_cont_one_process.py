@@ -25,14 +25,14 @@ e = 0.25 # epsilon
 w = 1 # omega
 
 ## transport parameters
-t_max = 20
+t_max = 10
 # point of interest
 XY_1   = [1.12, 0.6]
 XY_2   = [1.14, 0.6]
 XY_3   = [1.13, 0.58]
 XY_4   = [1.13, 0.62]
 # time step in Runge-Kutta integrator
-dt   = 0.01
+dt   = 0.1
 # multiplication factor to compare different time steps 
 dt_factor = 10
 
@@ -47,6 +47,14 @@ x_max = 2 # x_max
 y_max = 1 # y_max
 x_plot_margin = x_max/10
 y_plot_margin = y_max/10
+
+# Specify limit of particle rectangle
+particles_x_min = 0.9
+particles_x_max = 1.1
+particles_y_min = 0.4
+particles_y_max = 0.6
+
+# fig size here?
 
 ### INITIALIZING functions
 
@@ -148,8 +156,8 @@ plt.plot(T[0,:], T[1,:], label = 'x,y = %s' % XY_4)
 
 # Add legend and set limits
 plt.legend()
-plt.xlim(0,2)
-plt.ylim(0,1)
+plt.xlim(x_min, x_max)
+plt.ylim(y_min, y_max)
 plt.show()
 
 ### plot grid of points before and after transport
@@ -167,4 +175,134 @@ XY[:] = np.meshgrid(X, Y)
 # Make scatter plot to show all grid points
 fig = plt.figure(figsize = (12,6))
 plt.scatter(XY[0,:], XY[1,:], marker = '.', c = '#348ABD')
+plt.xlim(x_min, x_max)
+plt.ylim(y_min, y_max)
 plt.show()
+
+# Array to hold all grid points after transport
+X1 = np.zeros((2, Ny, Nx))
+
+# Loop over grid and update all positions
+# This is where parallelisation would happen, since
+# each position is independent of all the others
+for i in range(Nx):
+    for j in range(Ny):
+        # Keep only the last position, not the entire trajectory
+        X1[:,j,i] = trajectory(XY[:,j,i], t_max, dt, rk4, f)[:,-1]
+ 
+# Make scatter plot to show all grid points
+fig = plt.figure(figsize = (12,6))
+plt.scatter(X1[0,:], X1[1,:], marker = '.', c = '#348ABD')
+plt.xlim(x_min, x_max)
+plt.ylim(y_min, y_max)
+plt.show()
+
+### plot particle rectangle before and after transport
+
+# Create lists of all x and y positions
+X  = np.linspace(particles_x_min, particles_x_max, Nx)
+Y  = np.linspace(particles_y_min, particles_y_max, Ny)
+
+# Array to hold all grid points
+XY = np.zeros((2, Ny, Nx))
+# Use meshgrid to turn lists into rank 2 arrays
+# of x and y positions
+XY[:] = np.meshgrid(X, Y)
+
+# Make scatter plot to show all grid points
+fig = plt.figure(figsize = (12,6))
+plt.scatter(XY[0,:], XY[1,:], marker = '.', c = '#348ABD')
+plt.xlim(x_min, x_max)
+plt.ylim(y_min, y_max)
+
+# transportation
+
+# Array to hold all grid points after transport
+X1 = np.zeros((2, Ny, Nx))
+
+# Transport parameters
+t_max = 2.0
+
+# Loop over grid and update all positions
+# This is where parallelisation would happen, since
+# each position is independent of all the others
+for i in range(Nx):
+    for j in range(Ny):
+        # Keep only the last position, not the entire trajectory
+        X1[:,j,i] = trajectory(XY[:,j,i], t_max, dt, rk4, f)[:,-1]
+
+        
+# Make scatter plot to show all grid points
+fig = plt.figure(figsize = (12,6))
+plt.scatter(X1[0,:], X1[1,:], marker = '.', c = '#348ABD')
+plt.xlim(x_min, x_max)
+plt.ylim(y_min, y_max)
+plt.show()
+savefig()
+
+# Array to hold all grid points after transport
+X1 = np.zeros((2, Ny, Nx))
+
+# Transport parameters
+t_max = 8.0
+
+# Loop over grid and update all positions
+# This is where parallelisation would happen, since
+# each position is independent of all the others
+for i in range(Nx):
+    for j in range(Ny):
+        # Keep only the last position, not the entire trajectory
+        X1[:,j,i] = trajectory(XY[:,j,i], t_max, dt, rk4, f)[:,-1]
+
+        
+# Make scatter plot to show all grid points
+fig = plt.figure(figsize = (12,6))
+plt.scatter(X1[0,:], X1[1,:], marker = '.', c = '#348ABD')
+plt.xlim(x_min, x_max)
+plt.ylim(y_min, y_max)
+plt.show()
+savefig()
+
+# # Array to hold all grid points after transport
+# X1 = np.zeros((2, Ny, Nx))
+
+# # Transport parameters
+# t_max = 16.0
+
+# # Loop over grid and update all positions
+# # This is where parallelisation would happen, since
+# # each position is independent of all the others
+# for i in range(Nx):
+    # for j in range(Ny):
+        # # Keep only the last position, not the entire trajectory
+        # X1[:,j,i] = trajectory(XY[:,j,i], t_max, dt, rk4, f)[:,-1]
+
+        
+# # Make scatter plot to show all grid points
+# fig = plt.figure(figsize = (12,6))
+# plt.scatter(X1[0,:], X1[1,:], marker = '.', c = '#348ABD')
+# plt.xlim(x_min, x_max)
+# plt.ylim(y_min, y_max)
+# plt.show()
+
+# # Array to hold all grid points after transport
+# X1 = np.zeros((2, Ny, Nx))
+
+# # Transport parameters
+# t_max = 32.0
+
+# # Loop over grid and update all positions
+# # This is where parallelisation would happen, since
+# # each position is independent of all the others
+# for i in range(Nx):
+    # for j in range(Ny):
+        # # Keep only the last position, not the entire trajectory
+        # X1[:,j,i] = trajectory(XY[:,j,i], t_max, dt, rk4, f)[:,-1]
+
+        
+# # Make scatter plot to show all grid points
+# fig = plt.figure(figsize = (12,6))
+# plt.scatter(X1[0,:], X1[1,:], marker = '.', c = '#348ABD')
+# plt.xlim(x_min, x_max)
+# plt.ylim(y_min, y_max)
+# plt.show()

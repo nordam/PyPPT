@@ -1,10 +1,11 @@
 # example to run:
-"""
+'''
 mpiexec -n 4 python communication_of_particles.py
-"""
+'''
 # where 4 is the number of processes
 
 import numpy as np
+import os # for IO-paths
 
 from mpi4py import MPI
 from matplotlib import pyplot as plt
@@ -13,6 +14,7 @@ from matplotlib import pyplot as plt
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 mpi_size = comm.Get_size()
+request = MPI.Request
 
 ### INITIALIZING of global parameters/properties
 # initializing spatial properties
@@ -24,11 +26,11 @@ y_end = 0 # 1D example
 x_len = x_end - x_start
 y_len = y_end - y_start
 
-# initializing "processes/rank" properties
-# TODO: implement "find biggest factor"-function or another dynamical function to determine number of cells in each direction
+# initializing 'processes/rank' properties
+# TODO: implement 'find biggest factor'-function or another dynamical function to determine number of cells in each direction
 
 # number of cells in each direction (only divide x-direction at first draft/prototype)
-cells_dir_n = 8
+cells_dir_n = 4
 cell_x_n = cells_dir_n
 
 #cell_y_n = cells_dir_n
@@ -41,14 +43,30 @@ cell_n = cell_x_n
 scaling_factor = 1.1 ## variable
 shrink_if = 1/(scaling_factor**3)
 
-# the particle "object" is defined in several arrays
-# particle_id is bound to the index in the x/y-arrays
-# total number of particles
-particle_n = 10
-# array with particle IDs
-particle = np.arange(particle_n)
-particle_x = np.linspace(x_start, x_end, particle_n, endpoint=False)
-particle_y = np.linspace(y_start, y_end, particle_n, endpoint=False)
+# # the particle 'object' is defined in several arrays
+# # particle_id is bound to the index in the x/y-arrays
+# # total number of particles
+# particle_n = 10
+# # array with particle IDs
+# particle = np.arange(particle_n)
+# particle_x = np.linspace(x_start, x_end, particle_n, endpoint=False)
+# particle_y = np.linspace(y_start, y_end, particle_n, endpoint=False)
+
+# IO
+
+dir = os.path.dirname(os.path.realpath(__file__))
+IO_path = os.path.join(dir, 'simulation','files')
+IO_path_init = os.path.join(dir, 'simulation','initialize')
+
+file_extension = '.npy'
+
+file_path_id        = os.path.join(IO_path, 'particle_id' + str(rank))
+file_path_x         = os.path.join(IO_path, 'particle_x' + str(rank))
+file_path_active    = os.path.join(IO_path, 'particle_active' + str(rank))
+
+file_path_id_init       = os.path.join(IO_path_init, 'particle_id' + str(rank))
+file_path_x_init        = os.path.join(IO_path_init, 'particle_x' + str(rank))
+file_path_active_init   = os.path.join(IO_path_init, 'particle_active' + str(rank))
 
 ##### INITIALIZING end
 
@@ -64,12 +82,24 @@ def find_rank_from_cell(cell_id):
 def find_cell_from_position(x):
     return (np.floor(((x - x_start)/(x_len))*(cell_x_n))) # for 1D
 
-# function to reallocate active particles to the front of "active"-array
-# active_n = "number of active particles after sending, before receiving. aka. particles that stays in its own rank"
+# function to reallocate active particles to the front of 'active'-array
+# active_n = 'number of active particles after sending, before receiving. aka. particles that stays in its own rank'
 def move_active_to_front(particle_local, particle_x_local, particle_active_local, active_n):
-    print("particle_local:", particle_local)
-    print("particle_active_local:", particle_active_local)
-    print("active_n:", active_n)
+
+    # if rank == 0:
+        # print("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
+        # print("active_n:", active_n)
+        # print("particle_local[:active_n]:", particle_local[:active_n])
+        # print("particle_active_local SIZE:", particle_active_local.size)
+        # print("particle_active_local SUM:", particle_active_local.sum())
+        # print("particle_active_local:", particle_active_local)
+        # print("particle_local[particle_active_local] SIZE:", np.size(particle_local[particle_active_local]))
+        # print("particle_local[particle_active_local]:", particle_local[particle_active_local])
+        
+    #print('\nmove_active_to_front-function')
+    #print('particle_local:', particle_local)
+    #print('particle_active_local:', particle_active_local)
+    #print('active_n:', active_n)
     particle_local[:active_n] = particle_local[particle_active_local]
     particle_x_local[:active_n] = particle_x_local[particle_active_local]
     # set the corresponding first particles to active, the rest to false
@@ -78,7 +108,7 @@ def move_active_to_front(particle_local, particle_x_local, particle_active_local
     return
     
 # function to find which position of particle
-# no need for this function, can just call "particle_x_local = particle_x[particle_local]"
+# no need for this function, can just call 'particle_x_local = particle_x[particle_local]'
 # in 2D, return a rank 2 array?
 #def find_pos_from_particle(particle_id):
 #    return particle_x[particle_id] # for 1D
@@ -87,24 +117,29 @@ def move_active_to_front(particle_local, particle_x_local, particle_active_local
 ### code to run in each rank:
 
 ## initializing of local particle array
-# particles in local array represents positions AFTER transport with a "transport function"
+# particles in local array represents positions AFTER transport with a 'transport function'
 ## TODO: implement doublegyre function to transport particles
-# here we choose an arbitary* subset of particles to assign to each rank
-# *) arbitary: assign each n-th particle to the same rank, where n = number of ranks
-# particle 0 to rank 0, particle 1 to rank 1, (...), particle n to rank 0, particle n+1 to rank 1 etc.
+    # old way inline
+    # # here we choose an arbitary* subset of particles to assign to each rank
+    # # *) arbitary: assign each n-th particle to the same rank, where n = number of ranks
+    # # particle 0 to rank 0, particle 1 to rank 1, (...), particle n to rank 0, particle n+1 to rank 1 etc.
 
-particle_local = np.zeros(np.size(particle[rank::mpi_size]), dtype = int) # this size-method or ndarray.size?
-particle_local[:] = particle[rank::mpi_size]
-particle_n_local = particle_local.size # or this size-method?
+    # particle_local = np.zeros(np.size(particle[rank::mpi_size]), dtype = int) # this size-method or ndarray.size?
+    # particle_local[:] = particle[rank::mpi_size]
+    # particle_n_local = particle_local.size # or this size-method?
 
-particle_x_local = particle_x[particle_local]
-### particle_local_position = find_pos_from_particle(particle_local) # old way via function
-
-particle_active_local = np.zeros(particle_n_local, dtype=bool) # local
-# set all particles to active
-particle_active_local[:] = True
+    # particle_x_local = np.zeros(particle_n_local)
+    # particle_x_local[:] = particle_x[particle_local]
+    # # set all particles to active
+    # particle_active_local = np.ones(particle_n_local, dtype=bool) # local
 
 ### in the iterations after the first one, the local values are gathered from the last iteration
+# new way, load from file
+particle_local = np.load(file_path_id_init + file_extension)
+particle_x_local = np.load(file_path_x_init + file_extension)
+particle_active_local = np.load(file_path_active_init + file_extension)
+
+particle_n_local = particle_local.size
 
 # local array to show how many particles should be sent from one rank to the others
 # rows represent particles sent FROM rank = row number (0 indexing)
@@ -125,7 +160,7 @@ def fill_communication_arrays(rank, particle_local):
         if particle_rank != rank:
             send_n_array[int(rank)][int(particle_rank)] = send_n_array[int(rank)][int(particle_rank)] + 1
             send_to[i] = particle_rank
-            # converted indices to int to not get "deprecation warning"
+            # converted indices to int to not get 'deprecation warning'
     return send_to, send_n_array
 
 # array to show the particles in each rank, for debugging/help
@@ -134,21 +169,21 @@ def fill_communication_arrays(rank, particle_local):
 send_to_local, send_n_local = fill_communication_arrays(rank, particle_local) # (sendbuf 1 and 2)
 
 # communication
-# ALL nodes receives results with a collective "Allreduce"
+# ALL nodes receives results with a collective 'Allreduce'
 # mpi4py requires that we pass numpy objects.
 
 send_n_global = np.zeros((mpi_size, mpi_size), dtype=int) # recvbuf
 comm.Allreduce(send_n_local , send_n_global , op=MPI.SUM)
-print("\n")
-print("rank:", rank)
-#print("particle_local:", particle_local)
-#print("belongs to rank:", find_rank_from_cell(find_cell_from_position(particle_x_local)))
-#print("will be sent to:", send_to_local, "(sent_to-array)")
+print('\n')
+print('rank:', rank)
+#print('particle_local:', particle_local)
+#print('belongs to rank:', find_rank_from_cell(find_cell_from_position(particle_x_local)))
+#print('will be sent to:', send_to_local, '(sent_to-array)')
 
 if rank == 0:
-    #print("particles belongs to ranks (after transport):")
+    #print('particles belongs to ranks (after transport):')
     #for i in range(mpi_size):
-    print("global_array:\n", send_n_global)
+    print('global_array:\n', send_n_global)
 
 ### exchange/sending of particles ###
 ## method 1: array with shape (mpi_size, max_particle_send)
@@ -163,7 +198,7 @@ if rank == 0:
 # print(rank, particle_send_local)
 
 ## method 2: list of arrays for communication
-# initializing "communication arrays": send_*** and recv_***
+# initializing 'communication arrays': send_*** and recv_***
 # (Fortran code variable names: mpi_size = my_mpi_size, rank = my_mpi_rank)
 # send_id: list of arrays to show which particles are to be sent from a given rank to other ranks, where row number corresponds to the rank the the particles are send to
 # recv_id: list of arrays to show which particles are to be received from to a given rank from other ranks, where row number corresponds to the rank the particles are sent from
@@ -172,6 +207,11 @@ send_id_local = []
 send_x_local = []
 recv_id_local = []
 recv_x_local = []
+
+send_id_local_buf = []
+send_x_local_buf = []
+recv_id_local_buf = []
+recv_x_local_buf = []
 
 # total numbeer of received particles
 received_n = np.sum(send_n_global, axis = 0)[rank] ## variable
@@ -182,17 +222,21 @@ for irank in range(mpi_size):
     # append recv_id_local with the corresponding number of elements
     recv_id_local.append([None]*Nrecv)
     recv_x_local.append([None]*Nrecv)
+    recv_id_local_buf.append([None]*Nrecv)
+    recv_x_local_buf.append([None]*Nrecv)
     
     # find number of particles to be sent to irank (from current rank)
     Nsend = send_n_global[rank, irank]
     # append send_id_local with the corresponding number of elements
     send_id_local.append([None]*Nsend)
     send_x_local.append([None]*Nsend)
+    send_id_local_buf.append([None]*Nsend)
+    send_x_local_buf.append([None]*Nsend)
     
 # counter to get position in send_id_local for a particle to be sent
 send_count = np.zeros(mpi_size, dtype=int)
 
-# iterate over particle number (index or "local particle id") as now or: the particles in particle_local, or from the global particle id?
+# iterate over particle number (index or 'local particle id') as now or: the particles in particle_local, or from the global particle id?
 for i in range(particle_n_local):
     # if particle is active (still a local particle) and should be sent to a rank (-1 means that the particle already is in the correct rank)
     if (particle_active_local[i] and send_to_local[i] != -1):
@@ -208,19 +252,53 @@ for i in range(particle_n_local):
         particle_active_local[i] = False
         # increment counter to update position in temporary communication arrays (send_**)
         send_count[send_to_local[i]] = send_count[send_to_local[i]] + 1
-#print("send_id:" ,send_id_local)
-#print("send_x:" ,send_x_local)
-#print("\n")
+#print('send_id:' ,send_id_local)
+#print('send_x:' ,send_x_local)
+#print('\n')
+
+### point-to-point communication
+# communicate with all other ranks
+print('\ncommunication:')
 
 # must convert objects to be communicated to byte-like objects (numpy-objects)
+# this is not done before because np.ndarrays does not support a 'list of arrays' if not each array have equal dimensions
 send_id_np = np.array(send_id_local)
 recv_id_np = np.array(recv_id_local)
 send_x_np = np.array(send_x_local)
 recv_x_np = np.array(recv_x_local)
 
-### point-to-point communication
-# communicate with all other ranks
-print("\ncommunication:")
+send_id_np_buf= np.array(send_id_local_buf)
+recv_id_np_buf= np.array(recv_id_local_buf)
+send_x_np_buf= np.array(send_x_local_buf)
+recv_x_np_buf= np.array(recv_x_local_buf)
+
+# print('send_id_np ', send_id_np)
+# print('send_x_np ', send_x_np)
+# print('recv_id_np ', recv_id_np)
+# print('recv_x_np ', recv_x_np)
+
+# print('send_id_np_buf ', send_id_np_buf)
+# print('send_x_np_buf ', send_x_np_buf)
+# print('recv_id_np_buf ', recv_id_np_buf)
+# print('recv_x_np_buf ', recv_x_np_buf)
+
+
+# # print('send_id_np size', send_id_np.shape)
+# # print('send_x_np size', send_x_np.shape)
+# # print('recv_id_np size', recv_id_np.shape)
+# # print('recv_x_np size', recv_x_np.shape)
+
+
+# print('send_id_np_buf.dtype', send_id_np_buf.dtype)
+# print('send_x_np_buf.dtype', send_x_np_buf.dtype)
+# print('recv_id_np_buf.dtype', recv_id_np_buf.dtype)
+#print('recv_x_np_buf.dtype', recv_x_np_buf.dtype)
+
+#send_request = np.zeros(0)
+#recv_request = np.zeros(0)
+
+send_request = []
+recv_request = []
 
 # sending
 
@@ -230,19 +308,22 @@ for irank in range(mpi_size):
         Nsend = send_n_global[rank, irank] 
         # only receive if there is something to recieve
         if (Nsend > 0):
-            print("rank:", rank, "sending", Nsend, "particles to", irank)
+            print('rank:', rank, 'sending', Nsend, 'particles to', irank)
             # Use tags to separate communication
-            tag = 1 # tag uses 1-indexing so there will be no confusion with the default tag = 0
+            # tag uses 1-indexing so there will be no confusion with the default tag = 0
             #mpi_recv_request_valid(tag, irank + 1) = .true.
             # first: try with blocking communicator
             #comm.recv(recv_id_np[irank][:], source = irank, tag = 1) # could have written [0:Nrecv] insted of all ([:])
             #comm.send(s[irank][0:Nsend], dest = irank, tag = 1)
             comm.send(send_id_np[irank][0:Nsend], dest = irank, tag = 1)
             comm.send(send_x_np[irank][0:Nsend], dest = irank, tag = 2)
-            #print("sending:", send_id_np[irank][0:Nsend], send_x_np[irank][0:Nsend])
-print("sendt:", send_id_np, send_x_np)
+            #print('sending:', send_id_np[irank][0:Nsend], send_x_np[irank][0:Nsend])
+#print('sent:', send_id_np, send_x_np)
 
 # receiving
+
+
+
 ## TODO: use recv-buffer?
 for irank in range(mpi_size):
     if (rank != irank):
@@ -250,53 +331,68 @@ for irank in range(mpi_size):
         Nrecv = send_n_global[irank, rank]
         # only receive if there is something to recieve
         if (Nrecv > 0):
-            print("rank:", rank, "receiving", Nrecv, "particles from", irank)
+            print('rank:', rank, 'receiving', Nrecv, 'particles from', irank)
             # Use tags to separate communication
             tag = 1 # tag uses 1-indexing so there will be no confusion with the default tag = 0
             # mpi_recv_request_valid(tag, irank + 1) = .true.
             # first: try with blocking communicator
             #comm.recv(recv_id_np[irank][:], source = irank, tag = 1) # could have written [0:Nrecv] insted of all ([:])
             #comm.recv(r[irank][0:Nrecv], source = irank, tag = 1)
-            #print("RECV:", comm.recv(r, source = irank, tag = 1))
-            #print("TEST recv")
+            #print('RECV:', comm.recv(r, source = irank, tag = 1))
+            #print('TEST recv')
+            #reqest = ... buffer er array
+            #recv_id_np[irank][0:Nrecv] = comm.recv(buf=recv_id_np_buf, source = irank, tag = 1)
             recv_id_np[irank][0:Nrecv] = comm.recv(buf=None, source = irank, tag = 1)
+            #recv_x_np[irank][0:Nrecv] = comm.recv(buf=recv_x_np_buf, source = irank, tag = 2)
             recv_x_np[irank][0:Nrecv] = comm.recv(buf=None, source = irank, tag = 2)
-print("received:", recv_id_np,"," , recv_x_np)
+#print('received:', recv_id_np,',' , recv_x_np)
 
 active_n = np.sum(particle_active_local)
     
-#print("\n values before communication:")
-#print("particle_n_local", particle_n_local)
-#print("particle_local", particle_local)
-#print("particle_x_local", particle_x_local)
-#print("old particle_active_local", particle_active_local)
-#print("active_n = number of old particles:", active_n)
-#print("number of incoming particles:", received_n)
-#print("length of local array:", particle_n_local)
-#print("\n")
+#print('\n values before communication:')
+#print('particle_n_local', particle_n_local)
+#print('particle_local', particle_local)
+#print('particle_x_local', particle_x_local)
+#print('old particle_active_local', particle_active_local)
+#print('active_n = number of old particles:', active_n)
+#print('number of incoming particles:', received_n)
+#print('length of local array:', particle_n_local)
+#print('\n')
 
 # local arrays managment
-print("\nlocal arrays managment:")
+print('\nlocal array managment:')
+print('particle_n_local', particle_n_local)
+print('particle_local', particle_local)
+#print('particle_x_local', particle_x_local)
+#print('particle_active_local', particle_active_local)
+print('old particles still active, active_n:', active_n)
+
+# move all active particles to front of local arrays
+if (active_n > 0):
+    print('\nmove active particles to front')
+    #print('particle_local:', particle_local)
+    print('particle_active_local before movement to front:', particle_active_local)
+    move_active_to_front(particle_local, particle_x_local, particle_active_local, active_n)
 
 ### todo: add ceil/floor directly in if-check?
 # current scaling factor = 1.25
-# check if local arrays have enough free space, if not, allocate a "scaling_factor" more than needed
+# check if local arrays have enough free space, if not, allocate a 'scaling_factor' more than needed
 if (active_n + received_n > particle_n_local):
     new_length = int(np.ceil((active_n + received_n)*scaling_factor))
-    print("new_length:", new_length)
+    print('new_length:', new_length)
     #add = np.ceil((active_n + received_n - particle_n_local)*scaling_factor)
-    #print("add number of elements:", add)
-    #print("TEST: it should equal:", new_length - particle_n_local)
+    #print('add number of elements:', add)
+    #print('TEST: it should equal:', new_length - particle_n_local)
         
     # if new length not equal old length
     # resize all local arrays
     if new_length != particle_n_local:
-        print("extending arrays")
+        print('extending arrays')
         #particle_active_local = np.resize(particle_active_local, new_length)
-        particle_active_local = particle_active_local.resize(new_length)#, refcheck = False)
+        particle_active_local.resize(new_length)#, refcheck = False)
         # must set the added elements to False, NOT TRUE with .resize-method, missing/extra/new entries are filled with zero = false
         #particle_x_local = np.resize(particle_x_local, new_length)
-        particle_x_local = particle_x_local.resize(new_length)#, refcheck = False)
+        particle_x_local.resize(new_length)#, refcheck = False)
         #particle_local = np.resize(particle_local, new_length)
         particle_local.resize(new_length)#, refcheck = False) # refcheck = True by default
 
@@ -304,16 +400,16 @@ if (active_n + received_n > particle_n_local):
 # old + new particles < shrink_if*old_size
 # if they are, shrink them with a scaling_factor
 if (active_n + received_n < shrink_if*particle_n_local):
-    new_length = np.ceil(particle_n_local/scaling_factor)
-    print("new_length:", new_length)
+    new_length = int(np.ceil(particle_n_local/scaling_factor))
+    print('new_length:', new_length)
     #remove = np.floor((particle_n_local - particle_n_local)/scaling_factor)
-    #print("remove number of elements:", remove)
-    #print("TEST: it should equal:", particle_n_local - new_length)
+    #print('remove number of elements:', remove)
+    #print('TEST: it should equal:', particle_n_local - new_length)
         
     # if new length not equal old length
     # resize all local arrays
     if new_length != particle_n_local:
-        print("shrinking arrays")
+        print('shrinking arrays')
         #particle_active_local = np.resize(particle_active_local, new_length)
         particle_active_local.resize(new_length)
         #particle_x_local = np.resize(particle_x_local, new_length)
@@ -321,28 +417,24 @@ if (active_n + received_n < shrink_if*particle_n_local):
         #particle_local = np.resize(particle_local, new_length)
         particle_local.resize(new_length)#, refcheck = False) # refcheck = True by default
 
-print("\nvalues after resizing:")
-print("particle_n_local", particle_n_local)
-print("particle_local", particle_local)
-print("particle_x_local", particle_x_local)
-print("old particle_active_local", particle_active_local)
-print("active_n = number of old particles:", active_n)
-print("number of incoming particles:", received_n)
-print("length of local array:", particle_n_local)
-print("\n")
-        
-# move all active particles to front of local arrays
-move_active_to_front(particle_local, particle_x_local, particle_active_local, active_n)
-        
+# print('\nvalues after resizing:')
+# print('particle_n_local', particle_n_local)
+# print('particle_local', particle_local)
+# print('particle_x_local', particle_x_local)
+# print('particle_active_local', particle_active_local)
+# print('active_n = number of old particles:', active_n)
+# print('number of incoming particles:', received_n)
+# print('length of local array:', particle_n_local)
+            
 ## insert new particles
 ### TODO:
 ## should this be done for each row (ie. rank) in the arrays for communication?
 ## can this be done directly in the recv-for loop under # receiving?
 
 # unpack (hstack) the list of arrays, (ravel/flatten can not be used for dtype=object)
-#print("_flattend_ id:", np.hstack(recv_id_np))
-#print("_flattend_ x:", np.hstack(recv_x_np))
-#print("\n")
+#print('_flattend_ id:', np.hstack(recv_id_np))
+#print('_flattend_ x:', np.hstack(recv_x_np))
+#print('\n')
 
 particle_local[active_n:active_n+received_n] = np.hstack(recv_id_np)
 particle_x_local[active_n:active_n+received_n] = np.hstack(recv_x_np)
@@ -354,18 +446,25 @@ particle_n_local = np.size(particle_local)
 # this is not needed, the local arrays are transferred to the next iteration and the size etc. should be computed in the script
 
 # TODO: se skype
-#print("dtype", particle_local.dtype)
-print("values after communication:")
-print("particle_n_local", particle_n_local)
-print("particle_local", particle_local)
-print("particle_x_local", particle_x_local)
-print("new particle_active_local", particle_active_local)
+#print('dtype', particle_local.dtype)
+print('\nvalues after communication:')
+print('particle_n_local', particle_n_local)
+print('active_n:', active_n)
+print('particle_local', particle_local)
+#rint('particle_x_local', particle_x_local)
+print('particle_active_local', particle_active_local)
+
+### save files
+
+np.save(file_path_id, particle_local)
+np.save(file_path_x, particle_x_local)
+np.save(file_path_active, particle_active_local)
 
 #comm.barrier()
 #comm.wait()       
-#print("sent", s)
-#print("recv", r)
-#print("fikk", f)
+#print('sent', s)
+#print('recv', r)
+#print('fikk', f)
         
         #call MPI_IRECV(recv_id(irank+1)%p(1:Nrecv), Nrecv, MPI_DOUBLE, &irank, tag, MPI_COMM_WORLD, mpi_recv_request(tag, irank + 1), ierr)
         # tag = 2

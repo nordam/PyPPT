@@ -47,6 +47,12 @@ shrink_if = 1/(scaling_factor**3)
 # the particles are defined with its properties in several arrays
 # id, x-pos, y-pos, active-status
 
+# communication
+# numbers of tags
+tag_n = 3
+# tags: id, x, y
+buffer_overhead = 1000
+
 # IO
 dir = os.path.dirname(os.path.realpath(__file__))
 IO_path = os.path.join(dir, 'simulation','files')
@@ -94,7 +100,6 @@ def move_active_to_front(particle_id_local, particle_x_local, particle_y_local, 
 ## code to run in each rank:
 
 # initializing of local particle arrays 
-### TODO: implement doublegyre function to transport particles
 # the local particles are gathered from the local properties arrays, loaded from files
 
 particle_id_local = np.load(file_path_id_init + file_extension)
@@ -110,7 +115,11 @@ print('rank:', rank)
 print('length of local arrays:', particle_n_local)
 print("local particles:", particle_id_local)
 print("active particles:", particle_active_local*1) # *1 to turn the output into 0 and 1 instead of False and True
-print("belongs to rank:", find_rank_from_cell(find_cell_from_position(particle_x_local, particle_y_local)))
+#print("belongs to rank:", find_rank_from_cell(find_cell_from_position(particle_x_local, particle_y_local)))
+
+
+# transport particles:
+### TODO: implement doublegyre function to transport particles
 
 # send_n_array: array to show how many particles should be sent from one rank to the others
 # filled out locally in each rank, then communicated to all other ranks
@@ -161,12 +170,12 @@ recv_id_local = []
 recv_x_local = []
 recv_y_local = []
 
-send_id_local_buf = []
-send_x_local_buf = []
-recv_id_local_buf = []
-recv_x_local_buf = []
-send_y_local_buf = []
-recv_y_local_buf = []
+# send_id_local_buf = []
+# send_x_local_buf = []
+#recv_id_local_buf = []
+# recv_x_local_buf = []
+# send_y_local_buf = []
+# recv_y_local_buf = []
 
 # total number of received particles
 received_n = np.sum(send_n_global, axis = 0)[rank]
@@ -178,6 +187,7 @@ for irank in range(mpi_size):
     recv_id_local.append([None]*Nrecv)
     recv_x_local.append([None]*Nrecv)
     recv_y_local.append([None]*Nrecv)
+    
     #recv_id_local_buf.append([None]*Nrecv)
     #recv_x_local_buf.append([None]*Nrecv)
     #recv_y_local_buf.append([None]*Nrecv)
@@ -188,6 +198,7 @@ for irank in range(mpi_size):
     send_id_local.append([None]*Nsend)
     send_x_local.append([None]*Nsend)
     send_y_local.append([None]*Nsend)
+    
     #send_id_local_buf.append([None]*Nsend)
     #send_x_local_buf.append([None]*Nsend)
     #send_y_local.append([None]*Nsend)
@@ -221,23 +232,23 @@ recv_x_np = np.array(recv_x_local)
 send_y_np = np.array(send_y_local)
 recv_y_np = np.array(recv_y_local)
 
-send_id_np_buf= np.array(send_id_local_buf)
-recv_id_np_buf= np.array(recv_id_local_buf)
-send_x_np_buf= np.array(send_x_local_buf)
-recv_x_np_buf= np.array(recv_x_local_buf)
-send_y_np_buf= np.array(send_y_local_buf)
-recv_y_np_buf= np.array(recv_y_local_buf)
+# send_id_np_buf = np.array(send_id_local_buf)
+# recv_id_np_buf = np.array(recv_id_local_buf)
+# send_x_np_buf = np.array(send_x_local_buf)
+#recv_x_np_buf = np.array(recv_x_local_buf)
+# send_y_np_buf = np.array(send_y_local_buf)
+# recv_y_np_buf = np.array(recv_y_local_buf)
 
 # requests to be used for non-blocking send and receives
+# first only for ID, then for x and y
 #send_request = np.zeros(0)
 #recv_request = np.zeros(0)
-send_request = []
-recv_request = []
+send_request = [None]*mpi_size
 
 # sending
 
 for irank in range(mpi_size):
-    if (rank != irank):
+    if (irank != rank):
         # number of particles rank sends to irank
         Nsend = send_n_global[rank, irank] 
         # only receive if there is something to recieve
@@ -245,17 +256,18 @@ for irank in range(mpi_size):
             #print('rank:', rank, 'sending', Nsend, 'particles to', irank)
             # use tags to separate communication of different arrays/properties
             # tag uses 1-indexing so there will be no confusion with the default tag = 0
-            comm.send(send_id_np[irank][0:Nsend], dest = irank, tag = 1) # could have written [:] insted of [0:Nsend]
+            send_request[irank] = comm.isend(send_id_np[irank][0:Nsend], dest = irank, tag = 1) # could have written [:] insted of [0:Nsend]
             comm.send(send_x_np[irank][0:Nsend], dest = irank, tag = 2)
             comm.send(send_y_np[irank][0:Nsend], dest = irank, tag = 3)
             #print('sending:', send_id_np[irank][0:Nsend])#, send_x_np[irank][0:Nsend])
 print('send_id_np:', send_id_np)
 
 # receiving
+# non-blocking receive for id
+recv_request = [None]*mpi_size
 
-## TODO: use recv-buffer
 for irank in range(mpi_size):
-    if (rank != irank):
+    if (irank != rank):
         # number of particles irank sends to rank (number of particles rank recieves from irank)
         Nrecv = send_n_global[irank, rank]
         # only receive if there is something to recieve
@@ -263,11 +275,28 @@ for irank in range(mpi_size):
             #print('rank:', rank, 'receiving', Nrecv, 'particles from', irank)
             # use tags to separate communication of different arrays/properties
             # tag uses 1-indexing so there will be no confusion with the default tag = 0
-            recv_id_np[irank][0:Nrecv] = comm.recv(buf=None, source = irank, tag = 1)
+            buf = np.zeros(Nrecv+buffer_overhead, dtype = np.int)
+            #print("buf:", buf)
+            recv_request[irank] = comm.irecv(buf = buf, source = irank, tag = 1)
+            
+            #recv_id_np[irank][0:Nrecv] = comm.recv(buf=None, source = irank, tag = 1)
             recv_x_np[irank][0:Nrecv] = comm.recv(buf=None, source = irank, tag = 2)
             recv_y_np[irank][0:Nrecv] = comm.recv(buf=None, source = irank, tag = 3)
             #print('receiving:', recv_id_np[irank][0:Nrecv])#, send_x_np[irank][0:Nsend])
-print('recv_id_np:', recv_id_np)#,',' , recv_x_np)
+#print('recv_id_np:', recv_id_np)#,',' , recv_x_np)
+
+# Obtain data from completed requests
+# only at this step is the data actually returned.
+for irank in range(mpi_size):
+    if irank != rank:
+        recv_id_np[irank][:] = recv_request[irank].wait()
+        
+print('recv_id_np WAITED:', recv_id_np)#,',' , recv_x_np)
+
+# Make sure this rank does not exit until sends have completed
+for irank in range(mpi_size):
+    if irank != rank:
+        send_request[irank].wait()
 
 # number of active particles after sending
 active_n = np.sum(particle_active_local)

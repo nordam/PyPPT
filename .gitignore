@@ -87,3 +87,15 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# Shortcut to jupyter notebook. added by Simen 2016-11-17
+/jupyter notebook.exe - start in current folder
+
+# file folders
+/simulation
+
+# pdf files
+*.pdf
+
+# python binary files
+*.npy

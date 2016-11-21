@@ -1,0 +1,14 @@
+### TODO/notes/issues:
+'''
+2016-11-21 Simen M:
+    resize-method in communication is temporarily replaced by the resize function because the arrays are references
+        this must be fixed!
+    spatial properties to calculate cell/rank from position are given directly in communication.py
+        change this to be initialized in main function?
+    import comm = MPI.COMM_WORLD from main into communication-module?
+    generate initial grid in seperate file/scripts?
+    resize XY to fit XY1, now communication is done only one time
+        this MUST be done
+    only plot active particles
+        use active-array in plot to only plot active particles
+'''

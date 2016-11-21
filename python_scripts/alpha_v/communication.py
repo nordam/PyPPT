@@ -15,11 +15,18 @@ def exchange(X):
 #implement 'find biggest factor'-function or another dynamical function to determine number of cells in each direction
 
 import numpy as np
-### import mpi4py here?
+###TODO: import mpi4py here?
+
+import mpi4py.MPI as MPI
+
+### TODO: import comm from main?
+comm = MPI.COMM_WORLD
+#rank_communication_module = comm.Get_rank() # not used, parameter given from main
+#mpi_size_communication_module = comm.Get_size() # not used, parameter given from main
 
 ##  INITIALISING start
 # number of cells in each direction (only divide x-direction initially)
-cell_x_n = 10
+cell_x_n = 40
 cell_y_n = 0
 cell_n = cell_x_n + cell_y_n
 
@@ -37,6 +44,14 @@ tag_n = 3
 buffer_overhead = 1000
 
 ## INITIALISING end
+# spatial properties
+x_start = 0
+x_end = 1
+y_start = 0
+y_end = 1
+
+x_len = x_end - x_start
+y_len = y_end - y_start
 
 ## VARIABLES start
 
@@ -47,14 +62,14 @@ buffer_overhead = 1000
 # function to find the corresponding rank of a cell
 # this function determines how the cells are distributed to ranks
 ### TODO: discussion: how to do this distribution
-def find_rank_from_cell(cell_id):
-    return (cell_id % mpi_size)
+def find_rank_from_cell(cell_id, mpi_size):
+    return int(cell_id % mpi_size)
     
 # function to find the corresponding cell of a position
 # this function determines how the cells are distributed geometrically
 ### TODO: discussion: how to do this distribution
 def find_cell_from_position(x, y):
-    return (np.floor(((x - x_start)/(x_len))*(cell_x_n))) # for 1D
+    return int(((x - x_start)/(x_len))*(cell_x_n)) # for 1D
 
 # send_n_array: array to show how many particles should be sent from one rank to the others
 # filled out locally in each rank, then communicated to all other ranks
@@ -73,7 +88,7 @@ def global_communication_array(mpi_size, rank, particle_n, particle_x, particle_
         # only check if the particle is active
         if particle_active[i]:
             # find the rank of the cell of which the particle (its position) belongs to
-            particle_rank = find_rank_from_cell(find_cell_from_position(particle_x[i], particle_y[i]))
+            particle_rank = find_rank_from_cell(find_cell_from_position(particle_x[i], particle_y[i]), mpi_size)
             # if the particle's new rank does not equal the current rank (for the given process), it should be moved
             if particle_rank != rank:
                 send_n_array[int(rank)][int(particle_rank)] = send_n_array[int(rank)][int(particle_rank)] + 1
@@ -100,24 +115,30 @@ def move_active_to_front(particle_id, particle_x, particle_y, particle_active, a
 # all variables taken in by exchange() are local variables for the given rank (except mpi_size)
 def exchange(mpi_size,
             rank,
+            particle_n, # could also be calculated in function: particle_n = np.size(particle_id)
             particle_id,
             particle_x,
             particle_y,
             particle_active):
+    
+    #print('mpi_size from main module', mpi_size)
+    #print('mpi_size from communication module', mpi_size_communication_module)
+    #print('rank from main module', rank)
+    #print('rank from communication module', rank_communication_module)
     
     # compute "global communication array"
     # with all-to-all communication
     
     # length of local particle arrays
     # note: not necessary equal to number of active particles
-    particle_n = size(particle_id)
+
     send_to, send_n = global_communication_array(mpi_size, rank, particle_n, particle_x, particle_y, particle_active)
     
     # all nodes receives results with a collective 'Allreduce'
     
     # mpi4py requires that we pass numpy objects (byte-like objects)
     send_n_global = np.zeros((mpi_size, mpi_size), dtype=int)
-    comm.Allreduce(send_n_local , send_n_global , op=MPI.SUM)
+    comm.Allreduce(send_n, send_n_global , op=MPI.SUM)
     
     # each rank communicate with other ranks if it sends or receives particles from that rank
     # this information is now given in the "global communication array"
@@ -186,8 +207,13 @@ def exchange(mpi_size,
     recv_y_np = np.array(recv_y)
     
     # requests to be used for non-blocking send and receives
-    send_request = [None]*mpi_size
-    recv_request = [None]*mpi_size
+    send_request_id = [None]*mpi_size
+    send_request_x = [None]*mpi_size
+    send_request_y = [None]*mpi_size
+
+    recv_request_id = [None]*mpi_size
+    recv_request_x = [None]*mpi_size
+    recv_request_y = [None]*mpi_size
     
     # sending
 
@@ -200,9 +226,9 @@ def exchange(mpi_size,
                 #print('rank:', rank, 'sending', Nsend, 'particles to', irank)
                 # use tags to separate communication of different arrays/properties
                 # tag uses 1-indexing so there will be no confusion with the default tag = 0
-                send_request[irank] = comm.isend(send_id_np[irank][0:Nsend], dest = irank, tag = 1) # could have written [:] insted of [0:Nsend]
-                comm.send(send_x_np[irank][0:Nsend], dest = irank, tag = 2)
-                comm.send(send_y_np[irank][0:Nsend], dest = irank, tag = 3)
+                send_request_id[irank]  = comm.isend(send_id_np[irank][0:Nsend], dest = irank, tag = 1) # could have written [:] insted of [0:Nsend]
+                send_request_x[irank]   = comm.isend(send_x_np[irank][0:Nsend], dest = irank, tag = 2)
+                send_request_y[irank]   = comm.isend(send_y_np[irank][0:Nsend], dest = irank, tag = 3)
                 #print('sending:', send_id_np[irank][0:Nsend])#, send_x_np[irank][0:Nsend])
     print('send_id_np:', send_id_np)
     
@@ -215,32 +241,45 @@ def exchange(mpi_size,
             # only receive if there is something to recieve
             if (Nrecv > 0):
                 #print('rank:', rank, 'receiving', Nrecv, 'particles from', irank)
-                # use tags to separate communication of different arrays/properties
-                # tag uses 1-indexing so there will be no confusion with the default tag = 0
-                buf = np.zeros(Nrecv+buffer_overhead, dtype = np.int)
-                #print("buf:", buf)
-                recv_request[irank] = comm.irecv(buf = buf, source = irank, tag = 1)
                 
-                #recv_id_np[irank][0:Nrecv] = comm.recv(buf=None, source = irank, tag = 1)
-                recv_x_np[irank][0:Nrecv] = comm.recv(buf=None, source = irank, tag = 2)
-                recv_y_np[irank][0:Nrecv] = comm.recv(buf=None, source = irank, tag = 3)
-                #print('receiving:', recv_id_np[irank][0:Nrecv])#, send_x_np[irank][0:Nsend])
+                buf_id = np.zeros(Nrecv+buffer_overhead, dtype = np.int)
+                buf_x = np.zeros(Nrecv+buffer_overhead, dtype = np.float64)
+                buf_y = np.zeros(Nrecv+buffer_overhead, dtype = np.float64)
+                
+                # use tags to separate communication of different arrays/properties
+                # tag uses 1-indexing so there will be no confusion with the default tag = 0                
+                recv_request_id[irank]  = comm.irecv(buf = buf_id, source = irank, tag = 1)
+                recv_request_x[irank]   = comm.irecv(buf = buf_x, source = irank, tag = 2)
+                recv_request_y[irank]   = comm.irecv(buf = buf_y, source = irank, tag = 3)
     
     # obtain data from completed requests
     # only at this step is the data actually returned.
     for irank in range(mpi_size):
         if irank != rank:
-            recv_id_np[irank][:] = recv_request[irank].wait()
-            
-    print('recv_id_np:', recv_id_np)#,',' , recv_x_np)
+            # if there is something to receive
+            if send_n_global[irank, rank] > 0: # Nrecv > 0
+                recv_id_np[irank][:] = recv_request_id[irank].wait()
+                recv_x_np[irank][:] = recv_request_x[irank].wait()
+                recv_y_np[irank][:] = recv_request_y[irank].wait()
+                
+    #print('recv_id_np:', recv_id_np)
+    #print("recv_x_np:", recv_x_np)
+    #print("recv_y_np:", recv_y_np)
     
     # make sure this rank does not exit until sends have completed
     for irank in range(mpi_size):
         if irank != rank:
-            send_request[irank].wait()
+            # if there is something to send
+            if send_n_global[rank, irank] > 0: # Nsend > 0
+                send_request_id[irank].wait()
+                send_request_x[irank].wait()
+                send_request_y[irank].wait()
 
-    # number of active particles after sending
-    active_n = np.sum(particle_active)
+    # total number of received and sent particles
+    # total number of active particles after communication
+    sent_n      = int(np.sum(send_n_global, axis = 1)[rank])
+    received_n  = int(np.sum(send_n_global, axis = 0)[rank])
+    active_n    = int(np.sum(particle_active))
 
     # move all active particles to front of local arrays
     if (active_n > 0):
@@ -250,7 +289,7 @@ def exchange(mpi_size,
     
     # current scaling factor = 1.25
     ### TODO: add ceil/floor directly in if-check?
-    
+        
     # check if local arrays have enough free space, if not, allocate a 'scaling_factor' more than needed
     if (active_n + received_n > particle_n):
         new_length = int(np.ceil((active_n + received_n)*scaling_factor))
@@ -258,10 +297,16 @@ def exchange(mpi_size,
         if new_length != particle_n:
             #print('extending arrays to new length:', new_length)
             # with .resize-method, missing/extra/new entries are filled with zero (false in particle_active)
-            particle_active.resize(new_length)#, refcheck = False)
-            particle_id.resize(new_length)#, refcheck = False) # refcheck = True by default
-            particle_x.resize(new_length)
-            particle_y.resize(new_length)
+            ### TODO: change from resize function to method
+            particle_active = np.resize(particle_active, new_length)
+            particle_id     = np.resize(particle_id, new_length)
+            particle_x      = np.resize(particle_x, new_length)
+            particle_y      = np.resize(particle_y, new_length)
+            
+            #particle_active.resize(new_length)#, refcheck = False)
+            #particle_id.resize(new_length)#, refcheck = False) # refcheck = True by default
+            #particle_x.resize(new_length)
+            #particle_y.resize(new_length)
             
     # check if local arrays are bigger than needed (with a factor: shrink_if = 1/scaling_factor**3)
     # old + new particles < shrink_if*old_size
@@ -271,10 +316,16 @@ def exchange(mpi_size,
         # if new length is not equal old length: resize all local arrays
         if new_length != particle_n:
             #print('shrinking arrays to new length:', new_length)
-            particle_active.resize(new_length)
-            particle_id.resize(new_length)#, refcheck = False) # refcheck = True by default
-            particle_x.resize(new_length)
-            particle_y.resize(new_length)
+            ### TODO: change from resize function to method
+            particle_active = np.resize(particle_active, new_length)
+            particle_id     = np.resize(particle_id, new_length)
+            particle_x      = np.resize(particle_x, new_length)
+            particle_y      = np.resize(particle_y, new_length)
+            
+            # particle_active.resize(new_length)
+            # particle_id.resize(new_length)#, refcheck = False) # refcheck = True by default
+            # particle_x.resize(new_length)
+            # particle_y.resize(new_length)
 
     # add the received particles to local arrays     
 
@@ -292,11 +343,14 @@ def exchange(mpi_size,
     
     # optional printing for debugging
     # print the new values
-        print('\nnew length of local arrays:', particle_n)
+        print("sent_n:", sent_n)
+        print("received_n:", received_n)
+        print("active_n:", active_n)
+        print('\nnew length of local arrays:', np.size(particle_id))
         print("new local particles:", particle_id)
         print("new active particles:", particle_active*1) # *1 to turn the output into 0 and 1 instead of False and True
     else:
-        print("\nno received particles/aka no changes")
+        print("\nno received particles")
 
     # print global array
     if rank == 0:

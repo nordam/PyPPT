@@ -5,7 +5,7 @@
 
 # example to run:
 """
-mpiexec -n 1 python main.py
+mpiexec -n 4 python main.py
 """
 # where 4 is the number of processes
 import mpi4py.MPI as MPI
@@ -18,41 +18,58 @@ mpi_size = comm.Get_size()
 #plt.style.use('bmh')
 
 # import from other files
+import numpy as np
 import IO #save_array_binary_file, load_array_binary_file, create_grid_of_particles, save_grid_of_particles
 import transport #
-import plot
-import communication
+import plot #
+import communication #
 
 # temp functions
 
 ## VARIABLES start
-# number of particles
-particle_n = 10**2
+# particle_n, number of particles is defined directly in IO-function input
 
 # integrator timestep
 dt   = 0.5
 # number of timesteps between each communication event
 # now: plot each time, TODO: implement exchange/communications
-Ndt = 2
+Ndt = 10
 
 # simulation
 # start time
 t_0 = 0
 # end time
-t_max = 10
+t_max = 5
 
 ## VARIABLES end
 
-print("rank", rank)
+print('\nrank', rank)
+print('total number of ranks', mpi_size)
 
 # get initial positions, from file or random or other
-# initially: create from function
-id, active, XY = IO.create_grid_of_particles(particle_n, w = 0.1)
+# option 1: create from function
+#id, active, XY = IO.create_grid_of_particles(N = 10**2, w = 0.1)
+
+# option 2: load from file
+# first we have go generate the grid
+### TODO: do this in seperate script?
+# set all particles initially to rank 0, so the other ranks will load empty arrays
+id_init, active_init, XY_init = IO.create_grid_of_particles(N = 10**2, w = 0.1)
+if rank == 0:
+    IO.save_grid_of_particles(id_init, active_init, XY_init, t_0, rank, input = True)
+else:
+    IO.save_empty_grid_to_input(t_0, rank)
+
+# then load the particle grid for the given rank
+
+id, active, XY = IO.load_grid_of_particles(rank, time = 0)
+
+particle_n_local = np.size(id)
 
 # start at initial time
 t = t_0
 IO.save_grid_of_particles(id, active, XY, t, rank)
-plot.plot(XY, t, dt)
+plot.plot(rank, XY, t, dt)
 
 # main loop
 while t < t_max:
@@ -61,7 +78,7 @@ while t < t_max:
     #for i in range(Ndt):
         ## TODO: break for loop if t > t_max
         #print('for loop, i:', i)
-    XY, t = transport.transport(XY, particle_n, active, t, Ndt, dt)
+    XY, t = transport.transport(XY, particle_n_local, active, t, Ndt, dt)
          
         #t += dt # this increment is returned from transport-funcion
     ############
@@ -70,16 +87,28 @@ while t < t_max:
     # all variables taken in by exchange() are local variables for the given rank (except mpi_size)
     def exchange(mpi_size,
                 rank,
+                particle_n,
                 particle_id,
                 particle_x,
                 particle_y,
                 particle_active):
+                
+            return (particle_id,
+                particle_x,
+                particle_y,
+                particle_active)
     '''
-    #X = exchange(X)
+    id, x, y, active = communication.exchange(mpi_size, rank, particle_n_local, id, XY[0,:], XY[1,:], active)
+    particle_n_local_new = np.size(id)
+    XY1 = np.zeros((2, particle_n_local_new))
+    XY1[0,:] = x
+    XY1[1,:] = y
+    
+    ### TODO: resize XY to fit XY1
     # Then calculate concentration
     #############
-    plot.plot(XY, t, dt)
-    IO.save_grid_of_particles(id, active, XY, t, rank)
+    plot.plot(rank, XY1, t, dt, active)
+    IO.save_grid_of_particles(id, active, XY1, t, rank)
 
 #XY1, t = transport.transport(XY, particle_n, t, t_max, dt)
 #plot.plot(XY1, t)

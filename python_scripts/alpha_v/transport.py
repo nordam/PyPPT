@@ -71,6 +71,10 @@ def transport(XY0, particle_n, particle_active, current_time, Ndt, dt):
     ### for example set non-active particle coordinates to (0,0)?
     ###  or remove them?
     ### or do not send them to trajectory(), thus do not change them?
+    ### conclusion:
+    ###             assumes XY0 har all active particles firs 
+    ###             transport only the active particles
+    ###             take in active_n instead of whole array?
     # XY0 is a two-component vector [x, y]
     # loop over grid and update all positions
     # this is where parallelisation would happen, since each position is independent of all the others

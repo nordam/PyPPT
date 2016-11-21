@@ -19,8 +19,9 @@ import numpy as np
 
 ## VARIABLES start
 
-
 ## VARIABLES end
+
+## FUNCTIONS start
 
 # doublegyre velocity field
 def doublegyre(x, y, t, A, e, w):
@@ -58,13 +59,18 @@ def trajectory(XY, current_time, Ndt, dt, integrator, f):
     #Nt = int(t_max/dt)
     # loop over all timesteps
     #for i in range(1, Ndt+1):
-    for i in range(Ndt): ## TODO: what's the difference between this and last line?
+    for i in range(Ndt):
+    ## TODO: what's the difference between the last line and the line over it?
         XY = integrator(XY, t, dt, f)
         t += dt
     # return entire trajectory and current time
     return XY, t
     
-def transport(XY0, particle_n, current_time, Ndt, dt):
+def transport(XY0, particle_n, particle_active, current_time, Ndt, dt):
+    ### TODO: only transport active particles?
+    ### for example set non-active particle coordinates to (0,0)?
+    ###  or remove them?
+    ### or do not send them to trajectory(), thus do not change them?
     # XY0 is a two-component vector [x, y]
     # loop over grid and update all positions
     # this is where parallelisation would happen, since each position is independent of all the others
@@ -74,3 +80,5 @@ def transport(XY0, particle_n, current_time, Ndt, dt):
     # keep only the last position, not the entire trajectory
     XY, t = trajectory(XY0, current_time, Ndt, dt, rk4, f)
     return XY, t
+
+## FUNCTIONS end

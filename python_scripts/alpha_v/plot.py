@@ -25,9 +25,11 @@ y_max = 1
 
 ## VARIABLES end
 
-# TODO: insert name
+## FUNCTIONS start
+
+### TODO: set plot name as a variable?
 # XY is a two-component vector [x, y]
-def plot(XY, time):
+def plot(XY, time, dt):
     fig = plt.figure(figsize = (figsize_x, figsize_y))
     #plt.scatter(x, y, lw = 0, marker = '.', s = 1)
     plt.scatter(XY[0,:], XY[1,:], marker = '.')# linewidth = 1, s = 1) # s = size
@@ -36,4 +38,7 @@ def plot(XY, time):
     plt.xlim(x_min, x_max)
     plt.ylim(y_min, y_max)
     #plt.show()
-    plt.savefig('plots\particles_t_%s.pdf' % time)
+    plt.savefig('plots\particles_t_%s_dt_%s.pdf' % (time, dt))
+
+
+## FUNCTIONS end

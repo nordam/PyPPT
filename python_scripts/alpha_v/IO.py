@@ -16,6 +16,7 @@ output_folder = 'output'
 particle_x_name = 'particle_x'
 particle_y_name = 'particle_y'
 id_name = 'particle_id'
+active_name = 'particle_active'
 
 ## INITIALISING end
 
@@ -25,7 +26,9 @@ IO_path_input = os.path.join(dir,file_folder, input_folder)
 IO_path_output = os.path.join(dir,file_folder, output_folder)
 
 ## VARIABLES end
-    
+
+## FUNCTIONS start
+## FUNCTIONS end
 def save_array_binary_file(array, name, time, rank):
     #print(array)
     file_path = os.path.join(IO_path_output, 'time_%s_%s_rank_%s' % (time, name, rank))
@@ -41,13 +44,17 @@ def create_grid_of_particles(N, w):
     # covering a square patch of width and height w
     # centered on the region 0 < x < 2, 0 < y < 1
     id = np.arange(N)
+    active = np.ones(N, dtype=bool)
     x  = np.linspace(1.0-w/2, 1.0+w/2, int(np.sqrt(N)))
     y  = np.linspace(0.5-w/2, 0.5+w/2, int(np.sqrt(N)))
     x, y = np.meshgrid(x, y)
-    return id, np.array([np.ravel(x), np.ravel(y)])
+    return id, active, np.array([np.ravel(x), np.ravel(y)])
     
-def save_grid_of_particles(id, XY, time, rank):
+def save_grid_of_particles(id, active, XY, time, rank):
     # XY is a two-component vector [x, y]
-    #save_array_binary_file(id,      id_name,         time, rank)
+    save_array_binary_file(id,      id_name,         time, rank)
+    save_array_binary_file(active,  active_name,     time, rank)
     save_array_binary_file(XY[0,:], particle_x_name, time, rank)
     save_array_binary_file(XY[1,:], particle_y_name, time, rank)
+    
+## FUNCTIONS end

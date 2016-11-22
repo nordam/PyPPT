@@ -4,7 +4,8 @@
 # Simen Mikkelsen, 2016-11-20
 
 # plot.py
- 
+
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 plt.style.use('bmh')
@@ -38,7 +39,6 @@ def plot(rank, XY, time, dt, active = None):
     plt.xlim(x_min, x_max)
     plt.ylim(y_min, y_max)
     #plt.show()
-    plt.savefig('plots\particles_rank%s_t%s_dt%s.pdf' % (rank, time, dt))
-
+    plt.savefig(os.path.join('plots', 'particles_rank%s_t%s_dt%s.pdf' % (rank, time, dt)))
 
 ## FUNCTIONS end

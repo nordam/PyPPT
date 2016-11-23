@@ -20,9 +20,9 @@ import numpy as np
 import mpi4py.MPI as MPI
 
 ### TODO: import comm from main?
-comm = MPI.COMM_WORLD
-#rank_communication_module = comm.Get_rank() # not used, parameter given from main
-#mpi_size_communication_module = comm.Get_size() # not used, parameter given from main
+#comm = MPI.COMM_WORLD
+#rank_communication_module = communicator.Get_rank() # not used, parameter given from main
+#mpi_size_communication_module = communicator.Get_size() # not used, parameter given from main
 
 ##  INITIALISING start
 # number of cells in each direction (only divide x-direction initially)
@@ -80,6 +80,7 @@ def find_cell_from_position(x, y):
 # some of the particles may have to been moved to a new rank if they have been moved to a cell belonging to a new rank
 # send_to: array to show which rank a local particle needs to be sent to. or -1 if it should stay in the same rank
 def global_communication_array(mpi_size, rank, particle_n, particle_x, particle_y, particle_active):
+    #print('global com.array, particle n:', particle_n)
     # reset arrays telling which particles are to be sent
     send_to = np.zeros(particle_n, dtype=int) # local
     send_to[:] = -1
@@ -113,9 +114,10 @@ def move_active_to_front(particle_id, particle_x, particle_y, particle_active, a
 ## main FUNCTION start
 
 # all variables taken in by exchange() are local variables for the given rank (except mpi_size)
-def exchange(mpi_size,
+def exchange(communicator,
+            mpi_size,
             rank,
-            particle_n, # could also be calculated in function: particle_n = np.size(particle_id)
+            #particle_n, # could also be calculated in function: particle_n = np.size(particle_id)
             particle_id,
             particle_x,
             particle_y,
@@ -130,6 +132,7 @@ def exchange(mpi_size,
     # with all-to-all communication
     
     # length of local particle arrays
+    particle_n = np.size(particle_id)
     # note: not necessary equal to number of active particles
 
     send_to, send_n = global_communication_array(mpi_size, rank, particle_n, particle_x, particle_y, particle_active)
@@ -138,7 +141,7 @@ def exchange(mpi_size,
     
     # mpi4py requires that we pass numpy objects (byte-like objects)
     send_n_global = np.zeros((mpi_size, mpi_size), dtype=int)
-    comm.Allreduce(send_n, send_n_global , op=MPI.SUM)
+    communicator.Allreduce(send_n, send_n_global , op=MPI.SUM)
     
     # each rank communicate with other ranks if it sends or receives particles from that rank
     # this information is now given in the "global communication array"
@@ -226,9 +229,9 @@ def exchange(mpi_size,
                 #print('rank:', rank, 'sending', Nsend, 'particles to', irank)
                 # use tags to separate communication of different arrays/properties
                 # tag uses 1-indexing so there will be no confusion with the default tag = 0
-                send_request_id[irank]  = comm.isend(send_id_np[irank][0:Nsend], dest = irank, tag = 1) # could have written [:] insted of [0:Nsend]
-                send_request_x[irank]   = comm.isend(send_x_np[irank][0:Nsend], dest = irank, tag = 2)
-                send_request_y[irank]   = comm.isend(send_y_np[irank][0:Nsend], dest = irank, tag = 3)
+                send_request_id[irank]  = communicator.isend(send_id_np[irank][0:Nsend], dest = irank, tag = 1) # could have written [:] insted of [0:Nsend]
+                send_request_x[irank]   = communicator.isend(send_x_np[irank][0:Nsend], dest = irank, tag = 2)
+                send_request_y[irank]   = communicator.isend(send_y_np[irank][0:Nsend], dest = irank, tag = 3)
                 #print('sending:', send_id_np[irank][0:Nsend])#, send_x_np[irank][0:Nsend])
     print('send_id_np:', send_id_np)
     
@@ -248,9 +251,9 @@ def exchange(mpi_size,
                 
                 # use tags to separate communication of different arrays/properties
                 # tag uses 1-indexing so there will be no confusion with the default tag = 0                
-                recv_request_id[irank]  = comm.irecv(buf = buf_id, source = irank, tag = 1)
-                recv_request_x[irank]   = comm.irecv(buf = buf_x, source = irank, tag = 2)
-                recv_request_y[irank]   = comm.irecv(buf = buf_y, source = irank, tag = 3)
+                recv_request_id[irank]  = communicator.irecv(buf = buf_id, source = irank, tag = 1)
+                recv_request_x[irank]   = communicator.irecv(buf = buf_x, source = irank, tag = 2)
+                recv_request_y[irank]   = communicator.irecv(buf = buf_y, source = irank, tag = 3)
     
     # obtain data from completed requests
     # only at this step is the data actually returned.
@@ -303,10 +306,10 @@ def exchange(mpi_size,
             particle_x      = np.resize(particle_x, new_length)
             particle_y      = np.resize(particle_y, new_length)
             
-            #particle_active.resize(new_length)#, refcheck = False)
-            #particle_id.resize(new_length)#, refcheck = False) # refcheck = True by default
-            #particle_x.resize(new_length)
-            #particle_y.resize(new_length)
+            # particle_active.resize(new_length, refcheck = False)# refcheck = True by default
+            # particle_id.resize(new_length, refcheck = False)
+            # particle_x.resize(new_length, refcheck = False)
+            # particle_y.resize(new_length, refcheck = False)
             
     # check if local arrays are bigger than needed (with a factor: shrink_if = 1/scaling_factor**3)
     # old + new particles < shrink_if*old_size
@@ -322,10 +325,10 @@ def exchange(mpi_size,
             particle_x      = np.resize(particle_x, new_length)
             particle_y      = np.resize(particle_y, new_length)
             
-            # particle_active.resize(new_length)
-            # particle_id.resize(new_length)#, refcheck = False) # refcheck = True by default
-            # particle_x.resize(new_length)
-            # particle_y.resize(new_length)
+            # particle_active.resize(new_length, refcheck = False)# refcheck = True by default
+            # particle_id.resize(new_length, refcheck = False)
+            # particle_x.resize(new_length, refcheck = False)
+            # particle_y.resize(new_length, refcheck = False)
 
     # add the received particles to local arrays     
 

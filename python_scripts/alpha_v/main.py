@@ -48,44 +48,37 @@ print('total number of ranks', mpi_size)
 
 # get initial positions, from file or random or other
 # option 1: create from function
-#id, active, XY = IO.create_grid_of_particles(N = 10**2, w = 0.1)
+#ids, active, XY = IO.create_grid_of_particles(N = 10**2, w = 0.1)
 
 # option 2: load from file
-# first we have go generate the grid
-### TODO: do this in seperate script?
 # set all particles initially to rank 0, so the other ranks will load empty arrays
-id_init, active_init, XY_init = IO.create_grid_of_particles(N = 10**2, w = 0.1)
-if rank == 0:
-    IO.save_grid_of_particles(id_init, active_init, XY_init, t_0, rank, input = True)
-else:
-    IO.save_empty_grid_to_input(t_0, rank)
+# id_init, active_init, XY_init = IO.create_grid_of_particles(N = 10**2, w = 0.1)
+# if rank == 0:
+    # IO.save_grid_of_particles(id_init, active_init, XY_init, t_0, rank, input = True)
+# else:
+    # IO.save_empty_grid_to_input(t_0, rank)
 
 # then load the particle grid for the given rank
 
-id, active, XY = IO.load_grid_of_particles(rank, time = 0)
-
-particle_n_local = np.size(id)
+ids, active, XY = IO.load_grid_of_particles(rank, time = 0)
 
 # start at initial time
 t = t_0
-IO.save_grid_of_particles(id, active, XY, t, rank)
+IO.save_grid_of_particles(ids, active, XY, t, rank)
 plot.plot(rank, XY, t, dt)
 
 # main loop
 while t < t_max:
     print('t = %s' % t)
     # Take Ndt timesteps
-    #for i in range(Ndt):
-        ## TODO: break for loop if t > t_max
-        #print('for loop, i:', i)
-    XY, t = transport.transport(XY, particle_n_local, active, t, Ndt, dt)
-         
-        #t += dt # this increment is returned from transport-funcion
+    XY, t = transport.transport(XY, active, t, Ndt, dt)
+    #t += dt # this increment is returned from transport-funcion
     ############
     # Then communicate
     '''
     # all variables taken in by exchange() are local variables for the given rank (except mpi_size)
-    def exchange(mpi_size,
+    def exchange(communicator,
+                mpi_size,
                 rank,
                 particle_n,
                 particle_id,
@@ -98,8 +91,8 @@ while t < t_max:
                 particle_y,
                 particle_active)
     '''
-    id, x, y, active = communication.exchange(mpi_size, rank, particle_n_local, id, XY[0,:], XY[1,:], active)
-    particle_n_local_new = np.size(id)
+    ids, x, y, active = communication.exchange(comm, mpi_size, rank, ids, XY[0,:], XY[1,:], active)
+    particle_n_local_new = np.size(ids)
     XY1 = np.zeros((2, particle_n_local_new))
     XY1[0,:] = x
     XY1[1,:] = y
@@ -108,7 +101,7 @@ while t < t_max:
     # Then calculate concentration
     #############
     plot.plot(rank, XY1, t, dt, active)
-    IO.save_grid_of_particles(id, active, XY1, t, rank)
+    IO.save_grid_of_particles(ids, active, XY1, t, rank)
 
 #XY1, t = transport.transport(XY, particle_n, t, t_max, dt)
 #plot.plot(XY1, t)

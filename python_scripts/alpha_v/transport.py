@@ -66,7 +66,7 @@ def trajectory(XY, current_time, Ndt, dt, integrator, f):
     # return entire trajectory and current time
     return XY, t
     
-def transport(XY0, particle_n, particle_active, current_time, Ndt, dt):
+def transport(XY0, particle_active, current_time, Ndt, dt):
     ### TODO: only transport active particles?
     ### for example set non-active particle coordinates to (0,0)?
     ###  or remove them?
@@ -80,7 +80,7 @@ def transport(XY0, particle_n, particle_active, current_time, Ndt, dt):
     # this is where parallelisation would happen, since each position is independent of all the others
     
     # array to hold all grid points after transport
-    #XY1 = np.zeros((2, particle_n))
+    #XY1 = np.zeros((2, np.size(particle_active)))
     # keep only the last position, not the entire trajectory
     XY, t = trajectory(XY0, current_time, Ndt, dt, rk4, f)
     return XY, t

@@ -46,6 +46,10 @@ def load_array_binary_file(name, time, rank):
     
 def create_grid_of_particles(N, w):
     # create a grid of N evenly spaced particles
+    # N is rounded down to nearest perfect square
+    N = (int(np.sqrt(N)))**2
+    print('Creating grid of particles')
+    print('N: %s, w: %s' % (N, w))
     # covering a square patch of width and height w
     # centered on the region 0 < x < 2, 0 < y < 1
     ids = np.arange(N)
@@ -90,5 +94,10 @@ def load_grid_of_particles(rank, time):
 if __name__ == '__main__':
     N = 1000
     w = 0.1
+    t = 0
     i, a, xy = create_grid_of_particles(N, w)
-    save_grid_of_particles(i, a, xy, 0, 0, input=True)
+    save_grid_of_particles(i, a, xy, t, rank=0, input=True)
+    # save empty grids for the other ranks, in this case for 4 total ranks
+    save_empty_grid_to_input(0, 1)
+    save_empty_grid_to_input(0, 2)
+    save_empty_grid_to_input(0, 3)

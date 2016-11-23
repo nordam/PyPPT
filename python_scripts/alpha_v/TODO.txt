@@ -7,8 +7,22 @@
         change this to be initialized in main function?
     import comm = MPI.COMM_WORLD from main into communication-module?
     generate initial grid in seperate file/scripts?
+        DONE in IO.py if it's run seperately
     resize XY to fit XY1, now communication is done only one time
         this MUST be done
     only plot active particles
         use active-array in plot to only plot active particles
 '''
+2016-11-22
+    particle_n, the length of local arrays, do not pass it around, but calculate it where it is used
+        particle_n was calculated from id, which had length 1000, but the actual number of particles (from coordinate-arrays) was (floor(sqrt(1000)))^2 = 961
+        FIXED in IO.create_grid_of_particles(N, w): # N is rounded down to nearest perfect square
+    resize
+        use refcheck?
+        
+changes:
+    passing mpi.communicator to communicate.exchange-function
+    not using particle_n as a variable, but calculate it locally
+    
+discussion:
+    int() vs np.floor(). int rounds towards 0, floor always down

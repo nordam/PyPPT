@@ -24,6 +24,7 @@ import numpy as np
 ## FUNCTIONS start
 
 # doublegyre velocity field
+# splitted up in x- and y-components for readability
 def doublegyre(x, y, t, A, e, w):
     a = e * np.sin(w*t)
     b = 1 - 2*e*np.sin(w*t)
@@ -66,23 +67,23 @@ def trajectory(XY, current_time, Ndt, dt, integrator, f):
     # return entire trajectory and current time
     return XY, t
     
-def transport(XY0, particle_active, current_time, Ndt, dt):
+def transport(XY, particle_active, current_time, Ndt, dt):
     ### TODO: only transport active particles?
     ### for example set non-active particle coordinates to (0,0)?
     ###  or remove them?
     ### or do not send them to trajectory(), thus do not change them?
     ### conclusion:
-    ###             assumes XY0 har all active particles firs 
+    ###             assumes XY0 har all active particles first 
     ###             transport only the active particles
     ###             take in active_n instead of whole array?
-    # XY0 is a two-component vector [x, y]
+    # XY is a two-component vector [x, y]
     # loop over grid and update all positions
     # this is where parallelisation would happen, since each position is independent of all the others
     
     # array to hold all grid points after transport
-    #XY1 = np.zeros((2, np.size(particle_active)))
+    #XY1 = np.zeros((2, particle_n))
     # keep only the last position, not the entire trajectory
-    XY, t = trajectory(XY0, current_time, Ndt, dt, rk4, f)
+    XY, t = trajectory(XY, current_time, Ndt, dt, rk4, f)
     return XY, t
 
 ## FUNCTIONS end

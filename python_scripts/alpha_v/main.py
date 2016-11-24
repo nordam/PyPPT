@@ -39,7 +39,7 @@ Ndt = 10
 # start time
 t_0 = 0
 # end time
-t_max = 5
+t_max = 10
 
 ## VARIABLES end
 
@@ -65,13 +65,14 @@ ids, active, XY = IO.load_grid_of_particles(rank, time = 0)
 # start at initial time
 t = t_0
 IO.save_grid_of_particles(ids, active, XY, t, rank)
-plot.plot(rank, XY, t, dt)
+plot.plot(rank, XY, t, dt, active)
 
 # main loop
 while t < t_max:
-    print('t = %s' % t)
+    print('\nt = %s' % t)
     # Take Ndt timesteps
-    XY, t = transport.transport(XY, active, t, Ndt, dt)
+    XY, t = transport.transport(XY[:,active], active, t, Ndt, dt)
+    plot.plot(rank, XY, t, dt, active, name = 'after_transport-before_comm')
     #t += dt # this increment is returned from transport-funcion
     ############
     # Then communicate
@@ -91,17 +92,12 @@ while t < t_max:
                 particle_y,
                 particle_active)
     '''
-    ids, x, y, active = communication.exchange(comm, mpi_size, rank, ids, XY[0,:], XY[1,:], active)
-    particle_n_local_new = np.size(ids)
-    XY1 = np.zeros((2, particle_n_local_new))
-    XY1[0,:] = x
-    XY1[1,:] = y
-    
-    ### TODO: resize XY to fit XY1
+    ids, XY, active = communication.exchange(comm, mpi_size, rank, ids, XY[0,:], XY[1,:], active)
+
     # Then calculate concentration
     #############
-    plot.plot(rank, XY1, t, dt, active)
-    IO.save_grid_of_particles(ids, active, XY1, t, rank)
+    plot.plot(rank, XY, t, dt, active)
+    IO.save_grid_of_particles(ids, active, XY, t, rank)
 
 #XY1, t = transport.transport(XY, particle_n, t, t_max, dt)
 #plot.plot(XY1, t)

@@ -21,8 +21,27 @@
         use refcheck?
         
 changes:
+    IO.create_grid_of_particles(N, w): # N is rounded down to nearest perfect square
     passing mpi.communicator to communicate.exchange-function
     not using particle_n as a variable, but calculate it locally
     
 discussion:
     int() vs np.floor(). int rounds towards 0, floor always down
+    
+2016-11-23
+    changed XY into two seperate arrays: x and y
+        in transport
+    plot
+        added optional-name argument
+        
+questions
+       how to implement rk4 with seperate x- and y vector
+       
+2016-11-24
+    bug/issues:
+        in transport.move_active_to_front(), particle_active has dtype float, so it can not be used as indices
+        proposed solution: IO.create_grid... create empty grid for "emtpy ranks", does this cause the bug?
+            FIXED: the empty active-arrays now have dtype=bool (and ids have dtype=int)
+    changes:
+        plot now only plot active particles, must take an boolean array as a parametre
+            plt.scatter(XY[0,active], XY[1,active] etc.

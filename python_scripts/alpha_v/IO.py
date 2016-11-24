@@ -73,8 +73,8 @@ def save_grid_of_particles(ids, active, XY, time, rank, input = False):
         save_array_binary_file(XY[1,:], particle_y_name, time, rank)
 
 def save_empty_grid_to_input(time, rank):
-    save_array_binary_file_in_input(np.ndarray(0), id_name,         time, rank)
-    save_array_binary_file_in_input(np.ndarray(0), active_name,     time, rank)
+    save_array_binary_file_in_input(np.ndarray(0, dtype=int ), id_name,         time, rank)
+    save_array_binary_file_in_input(np.ndarray(0, dtype=bool), active_name,     time, rank)
     save_array_binary_file_in_input(np.ndarray(0), particle_x_name, time, rank)
     save_array_binary_file_in_input(np.ndarray(0), particle_y_name, time, rank)
 
@@ -95,9 +95,11 @@ if __name__ == '__main__':
     N = 1000
     w = 0.1
     t = 0
+    total_ranks = 4
     i, a, xy = create_grid_of_particles(N, w)
     save_grid_of_particles(i, a, xy, t, rank=0, input=True)
     # save empty grids for the other ranks, in this case for 4 total ranks
-    save_empty_grid_to_input(0, 1)
-    save_empty_grid_to_input(0, 2)
-    save_empty_grid_to_input(0, 3)
+    
+    for i in range(1, total_ranks):
+        print('creating empty arrays for rank:', i)
+        save_empty_grid_to_input(t, i)

@@ -26,7 +26,7 @@ import mpi4py.MPI as MPI
 
 ##  INITIALISING start
 # number of cells in each direction (only divide x-direction initially)
-cell_x_n = 40
+cell_x_n = 200
 cell_y_n = 0
 cell_n = cell_x_n + cell_y_n
 
@@ -101,6 +101,7 @@ def global_communication_array(mpi_size, rank, particle_n, particle_x, particle_
 # active_n = number of active particles after deactivation of particles sent to another rank, but before receiving.
 # aka. particles that stays in its own rank
 def move_active_to_front(particle_id, particle_x, particle_y, particle_active, active_n):
+    #print('move_active_to_front(), particle_active, active_n:', particle_active.dtype, active_n)
     particle_id[:active_n] = particle_id[particle_active]
     particle_x[:active_n] = particle_x[particle_active]
     particle_y[:active_n] = particle_y[particle_active]
@@ -233,7 +234,7 @@ def exchange(communicator,
                 send_request_x[irank]   = communicator.isend(send_x_np[irank][0:Nsend], dest = irank, tag = 2)
                 send_request_y[irank]   = communicator.isend(send_y_np[irank][0:Nsend], dest = irank, tag = 3)
                 #print('sending:', send_id_np[irank][0:Nsend])#, send_x_np[irank][0:Nsend])
-    print('send_id_np:', send_id_np)
+    #print('send_id_np:', send_id_np)
     
     # receiving
 
@@ -333,10 +334,7 @@ def exchange(communicator,
     # add the received particles to local arrays     
 
     # unpack (hstack) the list of arrays, (ravel/flatten can not be used for dtype=object)
-
-    print("received_n:", received_n)
-    print("active_n:", active_n)
-
+    
     if received_n > 0:
         particle_id[active_n:active_n+received_n] = np.hstack(recv_id_np)
         particle_x[active_n:active_n+received_n] = np.hstack(recv_x_np)
@@ -345,13 +343,15 @@ def exchange(communicator,
         particle_active[active_n:active_n+received_n]  = [True]*received_n
     
     # optional printing for debugging
-    # print the new values
+    # print values for debugging
+        print('particle_n (old value):', particle_n)
+        print("old active_n:", active_n)
         print("sent_n:", sent_n)
         print("received_n:", received_n)
-        print("active_n:", active_n)
-        print('\nnew length of local arrays:', np.size(particle_id))
-        print("new local particles:", particle_id)
-        print("new active particles:", particle_active*1) # *1 to turn the output into 0 and 1 instead of False and True
+        print("new active_n:", np.sum(particle_active))
+        print('new length of local arrays:', np.size(particle_id))
+        #print("new local particles:", particle_id)
+        #print("new active particles:", particle_active*1) # *1 to turn the output into 0 and 1 instead of False and True
     else:
         print("\nno received particles")
 
@@ -361,6 +361,6 @@ def exchange(communicator,
     
     # return the updated particle arrays
     return (particle_id,
-            particle_x,
-            particle_y,
+            np.array([  particle_x,  # x component
+                        particle_y]),# x component
             particle_active)

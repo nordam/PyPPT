@@ -23,6 +23,7 @@ import IO #save_array_binary_file, load_array_binary_file, create_grid_of_partic
 import transport #
 import plot #
 import communication #
+import debugging as db
 
 # temp functions
 
@@ -65,14 +66,18 @@ ids, active, XY = IO.load_grid_of_particles(rank, time = 0)
 # start at initial time
 t = t_0
 IO.save_grid_of_particles(ids, active, XY, t, rank)
-plot.plot(rank, XY, t, dt, active)
+plot.plot(rank, XY[:,active], t, dt)
 
 # main loop
 while t < t_max:
     print('\nt = %s' % t)
     # Take Ndt timesteps
-    XY, t = transport.transport(XY[:,active], active, t, Ndt, dt)
-    plot.plot(rank, XY, t, dt, active, name = 'after_transport-before_comm')
+        
+    # only take active particles into transport function
+    # non-active particles should be in the end of the arrays,
+    # so if we want we can use the index as XY[:,:np.sum(active)] instead
+    XY[:,active], t = transport.transport(XY[:,active], active, t, Ndt, dt)
+    plot.plot(rank, XY[:,active], t, dt, name = 'after_transport-before_comm')
     #t += dt # this increment is returned from transport-funcion
     ############
     # Then communicate
@@ -92,11 +97,12 @@ while t < t_max:
                 particle_y,
                 particle_active)
     '''
+    
     ids, XY, active = communication.exchange(comm, mpi_size, rank, ids, XY[0,:], XY[1,:], active)
-
+    
     # Then calculate concentration
     #############
-    plot.plot(rank, XY, t, dt, active)
+    plot.plot(rank, XY[:,active], t, dt)
     IO.save_grid_of_particles(ids, active, XY, t, rank)
 
 #XY1, t = transport.transport(XY, particle_n, t, t_max, dt)

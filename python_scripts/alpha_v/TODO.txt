@@ -42,6 +42,11 @@ questions
         in transport.move_active_to_front(), particle_active has dtype float, so it can not be used as indices
         proposed solution: IO.create_grid... create empty grid for "emtpy ranks", does this cause the bug?
             FIXED: the empty active-arrays now have dtype=bool (and ids have dtype=int)
+        buffer too small for 10e4 particles
+            increased buffer_overhead to 10000 particles
+        buffer overhead is still too small for 10e5 particles
     changes:
-        plot now only plot active particles, must take an boolean array as a parametre
-            plt.scatter(XY[0,active], XY[1,active] etc.
+        plot now only takes in the active particles
+            plot.plot(XY[0,active], XY[1,active] ...
+        transport now only takes in (and changes/overwrite) the active particles
+            

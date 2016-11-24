@@ -28,12 +28,11 @@ y_max = 1
 
 ## FUNCTIONS start
 
-### TODO: only plot active particles (if active=None, plot all)
 # XY is a two-component vector [x, y]
-def plot(rank, XY, time, dt, active, name = ''):
+def plot(rank, XY, time, dt, name = ''):
     fig = plt.figure(figsize = (figsize_x, figsize_y))
     #plt.scatter(x, y, lw = 0, marker = '.', s = 1)
-    plt.scatter(XY[0,active], XY[1,active], marker = '.', s = 5)#, linewidth = 1)# s = size
+    plt.scatter(XY[0,:], XY[1,:], marker = '.', s = 5)#, linewidth = 1)# s = size
     # add text showing time, and set plot limits
     plt.text(1.65, 0.9, 'rank = %s\n$t = %s$' % (rank, time), size = 36)
     plt.xlim(x_min, x_max)

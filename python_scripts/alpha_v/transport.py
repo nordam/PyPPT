@@ -68,14 +68,7 @@ def trajectory(XY, current_time, Ndt, dt, integrator, f):
     return XY, t
     
 def transport(XY, particle_active, current_time, Ndt, dt):
-    ### TODO: only transport active particles?
-    ### for example set non-active particle coordinates to (0,0)?
-    ###  or remove them?
-    ### or do not send them to trajectory(), thus do not change them?
-    ### conclusion:
-    ###             assumes XY0 har all active particles first 
-    ###             transport only the active particles
-    ###             take in active_n instead of whole array?
+    # only active particles are passed from main
     # XY is a two-component vector [x, y]
     # loop over grid and update all positions
     # this is where parallelisation would happen, since each position is independent of all the others

@@ -1,0 +1,54 @@
+D:\Google Drive\GitHub\PyPPT\python_scripts\alpha_v>python IO.py
+
+Creating grid of particles
+N: 1000000, w: 0.1
+creating empty arrays for rank: 1
+creating empty arrays for rank: 2
+creating empty arrays for rank: 3
+
+D:\Google Drive\GitHub\PyPPT\python_scripts\alpha_v>mpiexec -n 4 python main.py
+
+rank 2
+total number of ranks 4
+
+t = 0
+
+rank 3
+total number of ranks 4
+
+t = 0
+
+rank 1
+total number of ranks 4
+
+t = 0
+Traceback (most recent call last):
+  File "main.py", line 101, in <module>
+    ids, XY, active = communication.exchange(comm, mpi_size, rank, ids, XY[0,:], XY[1,:], active)
+  File "D:\Google Drive\GitHub\PyPPT\python_scripts\alpha_v\communication.py", line 265, in exchange
+    recv_id_np[irank][:] = recv_request_id[irank].wait()
+  File "MPI\Request.pyx", line 234, in mpi4py.MPI.Request.wait (c:\projects\mpi4py\src\mpi4py.MPI.c:75805)
+  File "MPI\msgpickle.pxi", line 397, in mpi4py.MPI.PyMPI_wait (c:\projects\mpi4py\src\mpi4py.MPI.c:44201)
+mpi4py.MPI.Exception: Message truncated, error stack:
+MPI_Wait(request=0x00000212480156E8, status0x0000007BEFBEF670) failed
+Message from rank 0 and tag 1 truncated; 1157690 bytes received but buffer size is 955356
+Traceback (most recent call last):
+  File "main.py", line 101, in <module>
+    ids, XY, active = communication.exchange(comm, mpi_size, rank, ids, XY[0,:], XY[1,:], active)
+  File "D:\Google Drive\GitHub\PyPPT\python_scripts\alpha_v\communication.py", line 265, in exchange
+    recv_id_np[irank][:] = recv_request_id[irank].wait()
+  File "MPI\Request.pyx", line 234, in mpi4py.MPI.Request.wait (c:\projects\mpi4py\src\mpi4py.MPI.c:75805)
+  File "MPI\msgpickle.pxi", line 397, in mpi4py.MPI.PyMPI_wait (c:\projects\mpi4py\src\mpi4py.MPI.c:44201)
+mpi4py.MPI.Exception: Message truncated, error stack:
+MPI_Wait(request=0x000001EE92C17058, status0x00000035A45EEFB0) failed
+Message from rank 0 and tag 1 truncated; 1185915 bytes received but buffer size is 976460
+Traceback (most recent call last):
+  File "main.py", line 101, in <module>
+    ids, XY, active = communication.exchange(comm, mpi_size, rank, ids, XY[0,:], XY[1,:], active)
+  File "D:\Google Drive\GitHub\PyPPT\python_scripts\alpha_v\communication.py", line 265, in exchange
+    recv_id_np[irank][:] = recv_request_id[irank].wait()
+  File "MPI\Request.pyx", line 234, in mpi4py.MPI.Request.wait (c:\projects\mpi4py\src\mpi4py.MPI.c:75805)
+  File "MPI\msgpickle.pxi", line 397, in mpi4py.MPI.PyMPI_wait (c:\projects\mpi4py\src\mpi4py.MPI.c:44201)
+mpi4py.MPI.Exception: Message truncated, error stack:
+MPI_Wait(request=0x0000013990DE9480, status0x000000216C7EF450) failed
+Message from rank 0 and tag 1 truncated; 1250257 bytes received but buffer size is 1031584

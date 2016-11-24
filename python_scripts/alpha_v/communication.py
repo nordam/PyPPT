@@ -26,7 +26,7 @@ import mpi4py.MPI as MPI
 
 ##  INITIALISING start
 # number of cells in each direction (only divide x-direction initially)
-cell_x_n = 200
+cell_x_n = 20
 cell_y_n = 0
 cell_n = cell_x_n + cell_y_n
 
@@ -41,7 +41,7 @@ shrink_if = 1/(scaling_factor**3)
 tag_n = 3
 
 # buffer overhead to use in memory reservation for non-blocking communication
-buffer_overhead = 1000
+buffer_overhead = 10000
 
 ## INITIALISING end
 # spatial properties
@@ -326,9 +326,9 @@ def exchange(communicator,
             particle_x      = np.resize(particle_x, new_length)
             particle_y      = np.resize(particle_y, new_length)
             
-            # particle_active.resize(new_length, refcheck = False)# refcheck = True by default
-            # particle_id.resize(new_length, refcheck = False)
-            # particle_x.resize(new_length, refcheck = False)
+            # particle_active.resize(new_length, refcheck = false)# refcheck = true by default
+            # particle_id.resize(new_length, refcheck = false)
+            # particle_x.resize(new_length, refcheck = false)
             # particle_y.resize(new_length, refcheck = False)
 
     # add the received particles to local arrays     
@@ -344,12 +344,12 @@ def exchange(communicator,
     
     # optional printing for debugging
     # print values for debugging
-        print('particle_n (old value):', particle_n)
-        print("old active_n:", active_n)
-        print("sent_n:", sent_n)
-        print("received_n:", received_n)
-        print("new active_n:", np.sum(particle_active))
-        print('new length of local arrays:', np.size(particle_id))
+        #print('particle_n (old value):', particle_n)
+        #print("old active_n:", active_n)
+        #print("sent_n:", sent_n)
+        #print("received_n:", received_n)
+        #print("new active_n:", np.sum(particle_active))
+        #print('new length of local arrays:', np.size(particle_id))
         #print("new local particles:", particle_id)
         #print("new active particles:", particle_active*1) # *1 to turn the output into 0 and 1 instead of False and True
     else:

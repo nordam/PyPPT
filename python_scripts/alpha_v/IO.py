@@ -92,7 +92,7 @@ def load_grid_of_particles(rank, time):
 ## FUNCTIONS end
 
 if __name__ == '__main__':
-    N = 1000
+    N = 100000
     w = 0.1
     t = 0
     total_ranks = 4

@@ -29,19 +29,18 @@ IO_path_output = os.path.join(cdir,file_folder, output_folder)
 
 ## FUNCTIONS start
 ## FUNCTIONS end
-def save_array_binary_file(array, name, time, rank):
-    #print(array)
-    file_path = os.path.join(IO_path_output, 'time%s_%s_rank%s' % (time, name, rank))
+def save_array_binary_file(array, name, time, rank, input = False):
+    if input:
+        file_path = os.path.join(IO_path_input, 'time%s_%s_rank%s' % (time, name, rank))
+    else:
+        file_path = os.path.join(IO_path_output, 'time%s_%s_rank%s' % (time, name, rank))
     np.save(file_path, array)
 
-def save_array_binary_file_in_input(array, name, time, rank):
-    #print(array)
-    file_path = os.path.join(IO_path_input, 'time%s_%s_rank%s' % (time, name, rank))
-    np.save(file_path, array)
-
-def load_array_binary_file(name, time, rank):
-    file_path = os.path.join(IO_path_input, 'time%s_%s_rank%s%s' % (time, name, rank, file_extension))
-    #print('input file path', file_path)
+def load_array_binary_file(name, time, rank, input = False):
+    if input:
+        file_path = os.path.join(IO_path_input, 'time%s_%s_rank%s%s' % (time, name, rank, file_extension))
+    else:
+        file_path = os.path.join(IO_path_output, 'time%s_%s_rank%s%s' % (time, name, rank, file_extension))
     return np.load(file_path)
     
 def create_grid_of_particles(N, w):
@@ -61,29 +60,29 @@ def create_grid_of_particles(N, w):
 
 def save_grid_of_particles(ids, active, XY, time, rank, input = False):
     # XY is a two-component vector [x, y]
-    if input:
-        save_array_binary_file_in_input(ids,     id_name,         time, rank)
-        save_array_binary_file_in_input(active,  active_name,     time, rank)
-        save_array_binary_file_in_input(XY[0,:], particle_x_name, time, rank)
-        save_array_binary_file_in_input(XY[1,:], particle_y_name, time, rank)    
-    else:
-        save_array_binary_file(ids,     id_name,         time, rank)
-        save_array_binary_file(active,  active_name,     time, rank)
-        save_array_binary_file(XY[0,:], particle_x_name, time, rank)
-        save_array_binary_file(XY[1,:], particle_y_name, time, rank)
+    save_array_binary_file(ids,     id_name,         time, rank, input)
+    save_array_binary_file(active,  active_name,     time, rank, input)
+    save_array_binary_file(XY[0,:], particle_x_name, time, rank, input)
+    save_array_binary_file(XY[1,:], particle_y_name, time, rank, input)
 
-def save_empty_grid_to_input(time, rank):
-    save_array_binary_file_in_input(np.ndarray(0, dtype=int ), id_name,         time, rank)
-    save_array_binary_file_in_input(np.ndarray(0, dtype=bool), active_name,     time, rank)
-    save_array_binary_file_in_input(np.ndarray(0), particle_x_name, time, rank)
-    save_array_binary_file_in_input(np.ndarray(0), particle_y_name, time, rank)
+def save_empty_grid(time, rank, input = False):
+    save_array_binary_file(np.ndarray(0, dtype=int ),   id_name,         time, rank, input)
+    save_array_binary_file(np.ndarray(0, dtype=bool),   active_name,     time, rank, input)
+    save_array_binary_file(np.ndarray(0),               particle_x_name, time, rank, input)
+    save_array_binary_file(np.ndarray(0),               particle_y_name, time, rank, input)
 
-def load_grid_of_particles(rank, time):
+def load_grid_of_particles(rank, time, input = False):
     # XY is a two-component vector [x, y]
-    file_path_id = os.path.join(IO_path_input, 'time%s_%s_rank%s%s' % (time, id_name, rank, file_extension))
-    file_path_active = os.path.join(IO_path_input, 'time%s_%s_rank%s%s' % (time, active_name, rank, file_extension))
-    file_path_x = os.path.join(IO_path_input, 'time%s_%s_rank%s%s' % (time, particle_x_name, rank, file_extension))
-    file_path_y = os.path.join(IO_path_input, 'time%s_%s_rank%s%s' % (time, particle_y_name, rank, file_extension))
+    if input:
+        file_path_id = os.path.join(IO_path_input, 'time%s_%s_rank%s%s' % (time, id_name, rank, file_extension))
+        file_path_active = os.path.join(IO_path_input, 'time%s_%s_rank%s%s' % (time, active_name, rank, file_extension))
+        file_path_x = os.path.join(IO_path_input, 'time%s_%s_rank%s%s' % (time, particle_x_name, rank, file_extension))
+        file_path_y = os.path.join(IO_path_input, 'time%s_%s_rank%s%s' % (time, particle_y_name, rank, file_extension))
+    else:
+        file_path_id = os.path.join(IO_path_output, 'time%s_%s_rank%s%s' % (time, id_name, rank, file_extension))
+        file_path_active = os.path.join(IO_path_output, 'time%s_%s_rank%s%s' % (time, active_name, rank, file_extension))
+        file_path_x = os.path.join(IO_path_output, 'time%s_%s_rank%s%s' % (time, particle_x_name, rank, file_extension))
+        file_path_y = os.path.join(IO_path_output, 'time%s_%s_rank%s%s' % (time, particle_y_name, rank, file_extension))    
     return (np.load(file_path_id),
             np.load(file_path_active),
             np.array([np.load(file_path_x), np.load(file_path_y)])
@@ -92,7 +91,7 @@ def load_grid_of_particles(rank, time):
 ## FUNCTIONS end
 
 if __name__ == '__main__':
-    N = 100000
+    N = 1000
     w = 0.1
     t = 0
     total_ranks = 4
@@ -102,4 +101,4 @@ if __name__ == '__main__':
     
     for i in range(1, total_ranks):
         print('creating empty arrays for rank:', i)
-        save_empty_grid_to_input(t, i)
+        save_empty_grid(t, i, input = True)

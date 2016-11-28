@@ -33,14 +33,13 @@ import debugging as db
 # integrator timestep
 dt   = 0.5
 # number of timesteps between each communication event
-# now: plot each time, TODO: implement exchange/communications
 Ndt = 10
 
 # simulation
 # start time
 t_0 = 0
 # end time
-t_max = 10
+t_max = 25
 
 ## VARIABLES end
 
@@ -61,7 +60,7 @@ print('total number of ranks', mpi_size)
 
 # then load the particle grid for the given rank
 
-ids, active, XY = IO.load_grid_of_particles(rank, time = 0)
+ids, active, XY = IO.load_grid_of_particles(rank, time = 0, input = True)
 
 # start at initial time
 t = t_0
@@ -69,15 +68,16 @@ IO.save_grid_of_particles(ids, active, XY, t, rank)
 plot.plot(rank, XY[:,active], t, dt)
 
 # main loop
-while t < t_max:
-    print('\nt = %s' % t)
+print('\nstart time = %s' % t)
+
+while t + dt <= t_max:
     # Take Ndt timesteps
         
     # only take active particles into transport function
     # non-active particles should be in the end of the arrays,
     # so if we want we can use the index as XY[:,:np.sum(active)] instead
     XY[:,active], t = transport.transport(XY[:,active], active, t, Ndt, dt)
-    plot.plot(rank, XY[:,active], t, dt, name = 'after_transport-before_comm')
+    plot.plot(rank, XY[:,active], t, dt, name = '_after_transport-before_comm_')
     #t += dt # this increment is returned from transport-funcion
     ############
     # Then communicate
@@ -104,11 +104,8 @@ while t < t_max:
     #############
     plot.plot(rank, XY[:,active], t, dt)
     IO.save_grid_of_particles(ids, active, XY, t, rank)
-
-#XY1, t = transport.transport(XY, particle_n, t, t_max, dt)
-#plot.plot(XY1, t)
-#IO.save_grid_of_particles(id, XY1, t, rank)
-
+    plot.plot_from_files(t, mpi_size, dt)
+    print('\nt = %s' % t)
 
 # IO-test:
     #a = [0, 1, 2, 3, 4]

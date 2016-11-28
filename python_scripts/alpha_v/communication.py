@@ -15,7 +15,6 @@ def exchange(X):
 #implement 'find biggest factor'-function or another dynamical function to determine number of cells in each direction
 
 import numpy as np
-###TODO: import mpi4py here?
 
 import mpi4py.MPI as MPI
 
@@ -41,7 +40,7 @@ shrink_if = 1/(scaling_factor**3)
 tag_n = 3
 
 # buffer overhead to use in memory reservation for non-blocking communication
-buffer_overhead = 10000
+buffer_overhead = 1000
 
 ## INITIALISING end
 # spatial properties
@@ -246,7 +245,7 @@ def exchange(communicator,
             if (Nrecv > 0):
                 #print('rank:', rank, 'receiving', Nrecv, 'particles from', irank)
                 
-                buf_id = np.zeros(Nrecv+buffer_overhead, dtype = np.int)
+                buf_id = np.zeros(Nrecv+buffer_overhead, dtype = np.int64)
                 buf_x = np.zeros(Nrecv+buffer_overhead, dtype = np.float64)
                 buf_y = np.zeros(Nrecv+buffer_overhead, dtype = np.float64)
                 

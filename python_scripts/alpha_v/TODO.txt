@@ -50,3 +50,7 @@ questions
             plot.plot(XY[0,active], XY[1,active] ...
         transport now only takes in (and changes/overwrite) the active particles
             
+2016-11-28
+    changes:
+        updated plot functions with respect to "input/output" and added "plot particles from all ranks at time t"
+        added plot function to plot all ranks togheter, each with their own colour

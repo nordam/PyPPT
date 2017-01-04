@@ -91,10 +91,10 @@ def load_grid_of_particles(rank, time, input = False):
 ## FUNCTIONS end
 
 if __name__ == '__main__':
-    N = 1000
+    N = 100000
     w = 0.1
     t = 0
-    total_ranks = 4
+    total_ranks = 16
     i, a, xy = create_grid_of_particles(N, w)
     save_grid_of_particles(i, a, xy, t, rank=0, input=True)
     # save empty grids for the other ranks, in this case for 4 total ranks

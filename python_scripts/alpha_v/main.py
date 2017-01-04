@@ -14,10 +14,21 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 mpi_size = comm.Get_size()
 
+from time import time
+
+comm.Barrier()
+if rank == 0:
+    tic = time()
+
+
 #import matplotlib.pyplot as plt
 #plt.style.use('bmh')
 
+import os
+import sys
 # import from other files
+import matplotlib
+matplotlib.use('agg')
 import numpy as np
 import IO #save_array_binary_file, load_array_binary_file, create_grid_of_particles, save_grid_of_particles
 import transport #
@@ -31,15 +42,15 @@ import debugging as db
 # particle_n, number of particles is defined directly in IO-function input
 
 # integrator timestep
-dt   = 0.5
+dt   = 0.005
 # number of timesteps between each communication event
-Ndt = 10
+Ndt = int(0.5/dt)
 
 # simulation
 # start time
 t_0 = 0
 # end time
-t_max = 25
+t_max = 3
 
 ## VARIABLES end
 
@@ -61,14 +72,20 @@ print('total number of ranks', mpi_size)
 # then load the particle grid for the given rank
 
 ids, active, XY = IO.load_grid_of_particles(rank, time = 0, input = True)
+if rank == 0:
+    Nparticles = np.sum(active)
 
 # start at initial time
 t = t_0
 IO.save_grid_of_particles(ids, active, XY, t, rank)
-plot.plot(rank, XY[:,active], t, dt)
+#plot.plot(rank, XY[:,active], t, dt)
 
 # main loop
 print('\nstart time = %s' % t)
+
+# Communicating, to avoid bad load balancing at the beginning
+print('This is rank %s, communicating before mainloop' % (rank))
+ids, XY, active = communication.exchange(comm, mpi_size, rank, ids, XY[0,:], XY[1,:], active)
 
 while t + dt <= t_max:
     # Take Ndt timesteps
@@ -76,8 +93,10 @@ while t + dt <= t_max:
     # only take active particles into transport function
     # non-active particles should be in the end of the arrays,
     # so if we want we can use the index as XY[:,:np.sum(active)] instead
+    print('This is rank %s, transporting %s particles' % (rank, np.sum(active)))
+    sys.stdout.flush()
     XY[:,active], t = transport.transport(XY[:,active], active, t, Ndt, dt)
-    plot.plot(rank, XY[:,active], t, dt, name = '_after_transport-before_comm_')
+    #plot.plot(rank, XY[:,active], t, dt, name = '_after_transport-before_comm_')
     #t += dt # this increment is returned from transport-funcion
     ############
     # Then communicate
@@ -98,14 +117,32 @@ while t + dt <= t_max:
                 particle_active)
     '''
     
+    print('This is rank %s, ready for communication' % (rank))
+    sys.stdout.flush()
     ids, XY, active = communication.exchange(comm, mpi_size, rank, ids, XY[0,:], XY[1,:], active)
     
     # Then calculate concentration
     #############
-    plot.plot(rank, XY[:,active], t, dt)
+    #plot.plot(rank, XY[:,active], t, dt)
     IO.save_grid_of_particles(ids, active, XY, t, rank)
-    plot.plot_from_files(t, mpi_size, dt)
+    # Insert barrier here
+    comm.Barrier()
+    #plot.plot_from_files(t, mpi_size, dt)
     print('\nt = %s' % t)
+
+
+timefilename = 'timing.txt'
+comm.Barrier()
+if rank == 0:
+    toc = time()
+    if not os.path.exists(timefilename):
+        timefile = open(timefilename, 'w')
+        timefile.write('Nparticles\tNcells\tNranks\tNcomm\tTmax\tdt\tTime\n')
+        timefile.close()
+    with open(timefilename, 'a') as timefile:
+        Ncomm = 1 + int(t_max / dt / Ndt)
+        timefile.write('%s\t%s\t%s\t%s\t%.5f\t%.5f\t%.5f\n' % (Nparticles, communication.cell_x_n, mpi_size, Ncomm, t_max, dt, toc - tic))
+
 
 # IO-test:
     #a = [0, 1, 2, 3, 4]

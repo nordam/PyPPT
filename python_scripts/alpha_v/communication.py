@@ -1,6 +1,8 @@
 # script with functions to use in main-file
 # this script handle the "communication of particles between ranks"-part
 
+import sys
+
 # Simen Mikkelsen, 2016-11-21
 
 # communication.py
@@ -170,16 +172,16 @@ def exchange(communicator,
         # find number of particles to be received from irank (sent to current rank)
         Nrecv = send_n_global[irank, rank]
         # append recv_id with the corresponding number of elements
-        recv_id.append([None]*Nrecv)
-        recv_x.append([None]*Nrecv)
-        recv_y.append([None]*Nrecv)
+        recv_id.append(np.zeros(Nrecv, dtype = np.int64))
+        recv_x.append(np.zeros(Nrecv, dtype = np.float64))
+        recv_y.append(np.zeros(Nrecv, dtype = np.float64))
                 
         # find number of particles to be sent to irank (from current rank)
         Nsend = send_n_global[rank, irank]
         # append send_id with the corresponding number of elements
-        send_id.append([None]*Nsend)
-        send_x.append([None]*Nsend)
-        send_y.append([None]*Nsend)
+        send_id.append(np.zeros(Nsend, dtype = np.int64))
+        send_x.append(np.zeros(Nsend, dtype = np.float64))
+        send_y.append(np.zeros(Nsend, dtype = np.float64))
 
     # counter to get position in send_** for a particle to be sent
     send_count = np.zeros(mpi_size, dtype=int)
@@ -202,21 +204,21 @@ def exchange(communicator,
     
     # must convert the list of arrays which are to be communicated to numpy objects (byte-like objects)
     # this is not done before because np.ndarrays does not support a "list of arrays" if the arrays does not have equal dimensions
-    send_id_np = np.array(send_id)
-    recv_id_np = np.array(recv_id)
-    send_x_np = np.array(send_x)
-    recv_x_np = np.array(recv_x)
-    send_y_np = np.array(send_y)
-    recv_y_np = np.array(recv_y)
+    #send_id_np = np.array(send_id)
+    #recv_id_np = np.array(recv_id)
+    #send_x_np = np.array(send_x)
+    #recv_x_np = np.array(recv_x)
+    #send_y_np = np.array(send_y)
+    #recv_y_np = np.array(recv_y)
     
     # requests to be used for non-blocking send and receives
-    send_request_id = [None]*mpi_size
-    send_request_x = [None]*mpi_size
-    send_request_y = [None]*mpi_size
+    send_request_id = [0] * mpi_size
+    send_request_x = [0] * mpi_size
+    send_request_y = [0] * mpi_size
 
-    recv_request_id = [None]*mpi_size
-    recv_request_x = [None]*mpi_size
-    recv_request_y = [None]*mpi_size
+    recv_request_id = [0] * mpi_size
+    recv_request_x = [0] * mpi_size
+    recv_request_y = [0] * mpi_size
     
     # sending
 
@@ -229,12 +231,10 @@ def exchange(communicator,
                 #print('rank:', rank, 'sending', Nsend, 'particles to', irank)
                 # use tags to separate communication of different arrays/properties
                 # tag uses 1-indexing so there will be no confusion with the default tag = 0
-                send_request_id[irank]  = communicator.isend(send_id_np[irank][0:Nsend], dest = irank, tag = 1) # could have written [:] insted of [0:Nsend]
-                send_request_x[irank]   = communicator.isend(send_x_np[irank][0:Nsend], dest = irank, tag = 2)
-                send_request_y[irank]   = communicator.isend(send_y_np[irank][0:Nsend], dest = irank, tag = 3)
-                #print('sending:', send_id_np[irank][0:Nsend])#, send_x_np[irank][0:Nsend])
-    #print('send_id_np:', send_id_np)
-    
+                send_request_id[irank] = communicator.isend(send_id[irank][0:Nsend], dest = irank, tag = 1)
+                send_request_x[irank]  = communicator.isend(send_x[irank][0:Nsend],  dest = irank, tag = 2)
+                send_request_y[irank]  = communicator.isend(send_y[irank][0:Nsend],  dest = irank, tag = 3)
+
     # receiving
 
     for irank in range(mpi_size):
@@ -244,26 +244,25 @@ def exchange(communicator,
             # only receive if there is something to recieve
             if (Nrecv > 0):
                 #print('rank:', rank, 'receiving', Nrecv, 'particles from', irank)
-                
                 buf_id = np.zeros(Nrecv+buffer_overhead, dtype = np.int64)
                 buf_x = np.zeros(Nrecv+buffer_overhead, dtype = np.float64)
                 buf_y = np.zeros(Nrecv+buffer_overhead, dtype = np.float64)
-                
+
                 # use tags to separate communication of different arrays/properties
-                # tag uses 1-indexing so there will be no confusion with the default tag = 0                
-                recv_request_id[irank]  = communicator.irecv(buf = buf_id, source = irank, tag = 1)
-                recv_request_x[irank]   = communicator.irecv(buf = buf_x, source = irank, tag = 2)
-                recv_request_y[irank]   = communicator.irecv(buf = buf_y, source = irank, tag = 3)
-    
+                # tag uses 1-indexing so there will be no confusion with the default tag = 0
+                recv_request_id[irank] = communicator.irecv(buf = buf_id, source = irank, tag = 1)
+                recv_request_x[irank]  = communicator.irecv(buf = buf_x,  source = irank, tag = 2)
+                recv_request_y[irank]  = communicator.irecv(buf = buf_y,  source = irank, tag = 3)
+
     # obtain data from completed requests
     # only at this step is the data actually returned.
     for irank in range(mpi_size):
         if irank != rank:
             # if there is something to receive
             if send_n_global[irank, rank] > 0: # Nrecv > 0
-                recv_id_np[irank][:] = recv_request_id[irank].wait()
-                recv_x_np[irank][:] = recv_request_x[irank].wait()
-                recv_y_np[irank][:] = recv_request_y[irank].wait()
+                recv_id[irank][:] = recv_request_id[irank].wait()
+                recv_x[irank][:] = recv_request_x[irank].wait()
+                recv_y[irank][:] = recv_request_y[irank].wait()
                 
     #print('recv_id_np:', recv_id_np)
     #print("recv_x_np:", recv_x_np)
@@ -335,11 +334,11 @@ def exchange(communicator,
     # unpack (hstack) the list of arrays, (ravel/flatten can not be used for dtype=object)
     
     if received_n > 0:
-        particle_id[active_n:active_n+received_n] = np.hstack(recv_id_np)
-        particle_x[active_n:active_n+received_n] = np.hstack(recv_x_np)
-        particle_y[active_n:active_n+received_n] = np.hstack(recv_y_np)
+        particle_id[active_n:active_n+received_n] = np.hstack(recv_id)
+        particle_x[active_n:active_n+received_n] = np.hstack(recv_x)
+        particle_y[active_n:active_n+received_n] = np.hstack(recv_y)
     # set the received particles to active
-        particle_active[active_n:active_n+received_n]  = [True]*received_n
+        particle_active[active_n:active_n+received_n]  = np.ones(received_n, dtype = np.bool)
     
     # optional printing for debugging
     # print values for debugging
